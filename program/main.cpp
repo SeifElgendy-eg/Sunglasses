@@ -28,7 +28,7 @@ int main(int argc, char **argv)
     // reflect(img);
     // img.saveImage("reflected_output.png");
 
-    blur(img, 5);
+    blur(img, 10);
     img.saveImage("blurred_output.png");
 
     return 0;
@@ -76,7 +76,6 @@ void reflect(Image &image)
     return;
 }
 
-// Blur with adjustable kernel size
 void blur(Image &image, int kernelSize)
 {
     if (kernelSize < 1)
