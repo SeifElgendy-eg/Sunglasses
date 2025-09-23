@@ -1,0 +1,3 @@
+/home/shade/codingProjects/fcai/my_qt_project/build/CMakeFiles/MyQtApp.dir
+/home/shade/codingProjects/fcai/my_qt_project/build/CMakeFiles/edit_cache.dir
+/home/shade/codingProjects/fcai/my_qt_project/build/CMakeFiles/rebuild_cache.dir
