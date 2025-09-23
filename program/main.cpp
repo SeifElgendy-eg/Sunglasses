@@ -12,6 +12,7 @@ int main(int argc, char **argv)
         std::cerr << "Usage: " << argv[0] << " <image_filename>" << std::endl;
         return -1;
     }
+
     Image img(argv[1]);
     if (img.imageData == nullptr) // Check loading of the image.
         return -2;
