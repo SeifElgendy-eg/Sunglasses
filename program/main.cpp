@@ -5,6 +5,7 @@
 void grayscale(Image &image);
 void invert(Image &image);
 void reflect(Image &image);
+void blur(Image &image, int kernelSize);
 
 int main(int argc, char **argv)
 {
@@ -23,8 +24,12 @@ int main(int argc, char **argv)
 
     // invert(img);
     // img.saveImage("inverted_output.png");
-    reflect(img);
-    img.saveImage("reflected_output.png");
+
+    // reflect(img);
+    // img.saveImage("reflected_output.png");
+
+    blur(img, 5);
+    img.saveImage("blurred_output.png");
 
     return 0;
 }
@@ -69,4 +74,40 @@ void reflect(Image &image)
         }
     }
     return;
+}
+
+// Blur with adjustable kernel size
+void blur(Image &image, int kernelSize)
+{
+    if (kernelSize < 1)
+        kernelSize = 1;
+    if (kernelSize % 2 == 0)
+        kernelSize++; // Ensure odd size for symmetry
+    int radius = kernelSize / 2;
+    Image copy = image;
+    for (int row = 0; row < image.height; row++)
+    {
+        for (int col = 0; col < image.width; col++)
+        {
+            int red = 0, green = 0, blue = 0, count = 0;
+            for (int dr = -radius; dr <= radius; dr++)
+            {
+                for (int dc = -radius; dc <= radius; dc++)
+                {
+                    int nr = row + dr;
+                    int nc = col + dc;
+                    if (nr >= 0 && nr < image.height && nc >= 0 && nc < image.width)
+                    {
+                        red += copy(nc, nr, 0);
+                        green += copy(nc, nr, 1);
+                        blue += copy(nc, nr, 2);
+                        count++;
+                    }
+                }
+            }
+            image(col, row, 0) = round((float)red / count);
+            image(col, row, 1) = round((float)green / count);
+            image(col, row, 2) = round((float)blue / count);
+        }
+    }
 }
