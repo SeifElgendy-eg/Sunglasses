@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cmath>
 
-using namespace std;
 void grayscale(Image &image);
 void invert(Image &image);
 
