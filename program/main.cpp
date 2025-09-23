@@ -4,6 +4,7 @@
 
 void grayscale(Image &image);
 void invert(Image &image);
+void reflect(Image &image);
 
 int main(int argc, char **argv)
 {
@@ -17,11 +18,14 @@ int main(int argc, char **argv)
     if (img.imageData == nullptr) // Check loading of the image.
         return -2;
 
-    grayscale(img);
-    img.saveImage("grayscale_output.png");
+    // grayscale(img);
+    // img.saveImage("grayscale_output.png");
 
-    invert(img);
-    img.saveImage("inverted_output.png");
+    // invert(img);
+    // img.saveImage("inverted_output.png");
+    reflect(img);
+    img.saveImage("reflected_output.png");
+
     return 0;
 }
 
@@ -48,4 +52,21 @@ void invert(Image &image)
             image(col, row, 2) = 255 - image(col, row, 2);
         }
     }
+}
+
+void reflect(Image &image)
+{
+    for (int row = 0; row < image.height; row++)
+    {
+        for (int col = 0; col < image.width / 2; col++)
+        {
+            for (int k = 0; k < 3; k++)
+            {
+                unsigned int temp = image(col, row, k);
+                image(col, row, k) = image((image.width - 1 - col), row, k);
+                image((image.width - 1 - col), row, k) = temp;
+            }
+        }
+    }
+    return;
 }
