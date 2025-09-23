@@ -1,10 +1,12 @@
 #include <Image_Class.h>
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 
 void grayscale(Image &image);
 void bnw(Image &image);
 void invert(Image &image);
+void merge(Image &image1, Image &image2, Image &outputImage, float alpha, char mode);
 void reflect(Image &image);
 void rotate(Image &image, int degrees);
 void dnl(Image &image, int percent);
@@ -31,16 +33,21 @@ int main(int argc, char **argv)
     // invert(img);
     // img.saveImage("inverted_output.png");
 
+    // Image img2(argv[2]); // For merge function testing
+    // Image outputImg;
+    // merge(img, img2, outputImg, 0.75, 'f');
+    // outputImg.saveImage("merged_output.png");
+
     // reflect(img);
     // img.saveImage("reflected_output.png");
 
     // rotate(img, 90);
     // img.saveImage("rotated_output.png");
 
-    dnl(img, 20); // Lighten by 20%
-    img.saveImage("lightened_output.png");
-    dnl(img, -40); // darken by 40%
-    img.saveImage("darkened_output.png");
+    // dnl(img, 20); // Lighten by 20%
+    // img.saveImage("lightened_output.png");
+    // dnl(img, -40); // darken by 40%
+    // img.saveImage("darkened_output.png");
 
     // blur(img, 10);
     // img.saveImage("blurred_output.png");
@@ -85,6 +92,39 @@ void invert(Image &image)
             image(col, row, 0) = 255 - image(col, row, 0);
             image(col, row, 1) = 255 - image(col, row, 1);
             image(col, row, 2) = 255 - image(col, row, 2);
+        }
+    }
+}
+
+void merge(Image &image1, Image &image2, Image &outputImage, float alpha, char mode)
+{
+    if (mode == 'f')
+    {
+        outputImage = Image(image1.width, image1.height);
+    }
+    else if (mode == 's')
+    {
+        outputImage = Image(image2.width, image2.height);
+    }
+    else
+    {
+        outputImage = Image(std::min(image1.width, image2.width),
+                            std::min(image1.height, image2.height));
+    }
+
+    for (int row = 0; row < outputImage.height; row++)
+    {
+        for (int col = 0; col < outputImage.width; col++)
+        {
+            for (int c = 0; c < 3; c++)
+            {
+                int val1 = (row < image1.height && col < image1.width) ? image1(col, row, c) : 0;
+                int val2 = (row < image2.height && col < image2.width) ? image2(col, row, c) : 0;
+
+                int mergedValue = static_cast<int>(alpha * val1 + (1 - alpha) * val2);
+                mergedValue = std::clamp(mergedValue, 0, 255);
+                outputImage(col, row, c) = mergedValue;
+            }
         }
     }
 }
