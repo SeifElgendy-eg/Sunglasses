@@ -6,6 +6,7 @@ void grayscale(Image &image);
 void invert(Image &image);
 void reflect(Image &image);
 void blur(Image &image, int kernelSize);
+void rotate(Image &image, int degrees);
 
 int main(int argc, char **argv)
 {
@@ -28,8 +29,11 @@ int main(int argc, char **argv)
     // reflect(img);
     // img.saveImage("reflected_output.png");
 
-    blur(img, 10);
-    img.saveImage("blurred_output.png");
+    // blur(img, 10);
+    // img.saveImage("blurred_output.png");
+
+    rotate(img, 90);
+    img.saveImage("rotated_output.png");
 
     return 0;
 }
@@ -108,5 +112,30 @@ void blur(Image &image, int kernelSize)
             image(col, row, 1) = round((float)green / count);
             image(col, row, 2) = round((float)blue / count);
         }
+    }
+}
+
+void rotate(Image &image, int degrees)
+{
+    degrees = degrees % 360;
+    if (degrees < 0)
+        degrees += 360;
+
+    int numRotations = degrees / 90;
+    numRotations = numRotations % 4; // Normalize to [0, 3]
+
+    for (int r = 0; r < numRotations; r++)
+    {
+        Image rotated(image.height, image.width);
+        for (int row = 0; row < image.height; row++)
+        {
+            for (int col = 0; col < image.width; col++)
+            {
+                rotated(image.height - 1 - row, col, 0) = image(col, row, 0);
+                rotated(image.height - 1 - row, col, 1) = image(col, row, 1);
+                rotated(image.height - 1 - row, col, 2) = image(col, row, 2);
+            }
+        }
+        image = rotated;
     }
 }
