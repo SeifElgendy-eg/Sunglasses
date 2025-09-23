@@ -3,6 +3,7 @@
 #include <cmath>
 
 void grayscale(Image &image);
+void bnw(Image &image);
 void invert(Image &image);
 void reflect(Image &image);
 void blur(Image &image, int kernelSize);
@@ -22,6 +23,9 @@ int main(int argc, char **argv)
 
     // grayscale(img);
     // img.saveImage("grayscale_output.png");
+
+    bnw(img);
+    img.saveImage("bnw_output.png");
 
     // invert(img);
     // img.saveImage("inverted_output.png");
@@ -45,6 +49,22 @@ void grayscale(Image &image)
         for (int col = 0; col < image.width; col++)
         {
             int num = round((image(col, row, 0) + image(col, row, 1) + image(col, row, 2)) / 3.0);
+            image(col, row, 0) = image(col, row, 1) = image(col, row, 2) = num;
+        }
+    }
+}
+
+void bnw(Image &image)
+{
+    for (int row = 0; row < image.height; row++)
+    {
+        for (int col = 0; col < image.width; col++)
+        {
+            int num = round((image(col, row, 0) + image(col, row, 1) + image(col, row, 2)) / 3.0);
+            if (num >= 128)
+                num = 255;
+            else
+                num = 0;
             image(col, row, 0) = image(col, row, 1) = image(col, row, 2) = num;
         }
     }
