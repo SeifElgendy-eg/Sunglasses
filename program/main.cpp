@@ -4,6 +4,7 @@
 
 using namespace std;
 void grayscale(Image &image);
+void invert(Image &image);
 
 int main(int argc, char **argv)
 {
@@ -17,8 +18,10 @@ int main(int argc, char **argv)
         return -2;
 
     grayscale(img);
-    img.saveImage("output.png");
+    img.saveImage("grayscale_output.png");
 
+    invert(img);
+    img.saveImage("inverted_output.png");
     return 0;
 }
 
@@ -30,6 +33,19 @@ void grayscale(Image &image)
         {
             int num = round((image(col, row, 0) + image(col, row, 1) + image(col, row, 2)) / 3.0);
             image(col, row, 0) = image(col, row, 1) = image(col, row, 2) = num;
+        }
+    }
+}
+
+void invert(Image &image)
+{
+    for (int row = 0; row < image.height; row++)
+    {
+        for (int col = 0; col < image.width; col++)
+        {
+            image(col, row, 0) = 255 - image(col, row, 0);
+            image(col, row, 1) = 255 - image(col, row, 1);
+            image(col, row, 2) = 255 - image(col, row, 2);
         }
     }
 }
