@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 
     dnl(img, 20); // Lighten by 20%
     img.saveImage("lightened_output.png");
-    dnl(img, -40); // Lighten by 20%
+    dnl(img, -40); // darken by 40%
     img.saveImage("darkened_output.png");
 
     // blur(img, 10);
