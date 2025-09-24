@@ -10,6 +10,7 @@ void merge(Image &image1, Image &image2, Image &outputImage, float alpha, char m
 void reflect(Image &image);
 void rotate(Image &image, int degrees);
 void dnl(Image &image, int percent);
+void crop(Image &image, int x, int y, int width, int height);
 void blur(Image &image, int kernelSize);
 
 int main(int argc, char **argv)
@@ -49,6 +50,9 @@ int main(int argc, char **argv)
     // dnl(img, -40); // darken by 40%
     // img.saveImage("darkened_output.png");
 
+    crop(img, 100, 50, 300, 200); // Crop in-place starting at (100,50) with 300x200 dimensions
+    img.saveImage("cropped_output.png");
+
     // blur(img, 10);
     // img.saveImage("blurred_output.png");
 
@@ -57,11 +61,15 @@ int main(int argc, char **argv)
 
 void grayscale(Image &image)
 {
+    // Iterate through each pixel in the image
     for (int row = 0; row < image.height; row++)
     {
         for (int col = 0; col < image.width; col++)
         {
+            // Calculate average of RGB values and round to nearest integer
             int num = round((image(col, row, 0) + image(col, row, 1) + image(col, row, 2)) / 3.0);
+
+            // Set all three color channels to the same grayscale value
             image(col, row, 0) = image(col, row, 1) = image(col, row, 2) = num;
         }
     }
@@ -69,15 +77,21 @@ void grayscale(Image &image)
 
 void bnw(Image &image)
 {
+    // Iterate through each pixel in the image
     for (int row = 0; row < image.height; row++)
     {
         for (int col = 0; col < image.width; col++)
         {
+            // Calculate average of RGB values (integer division for speed)
             int num = (image(col, row, 0) + image(col, row, 1) + image(col, row, 2)) / 3;
+
+            // Apply threshold: >= 128 becomes white, < 128 becomes black
             if (num >= 128)
-                num = 255;
+                num = 255; // White
             else
-                num = 0;
+                num = 0; // Black
+
+            // Set all three color channels to the same binary value
             image(col, row, 0) = image(col, row, 1) = image(col, row, 2) = num;
         }
     }
@@ -85,43 +99,55 @@ void bnw(Image &image)
 
 void invert(Image &image)
 {
+    // Iterate through each pixel in the image
     for (int row = 0; row < image.height; row++)
     {
         for (int col = 0; col < image.width; col++)
         {
-            image(col, row, 0) = 255 - image(col, row, 0);
-            image(col, row, 1) = 255 - image(col, row, 1);
-            image(col, row, 2) = 255 - image(col, row, 2);
+            // Invert each color channel: new_value = 255 - old_value
+            image(col, row, 0) = 255 - image(col, row, 0); // Red
+            image(col, row, 1) = 255 - image(col, row, 1); // Green
+            image(col, row, 2) = 255 - image(col, row, 2); // Blue
         }
     }
 }
 
 void merge(Image &image1, Image &image2, Image &outputImage, float alpha, char mode)
 {
+    // Determine output image dimensions based on merge mode
     if (mode == 'f')
     {
+        // Use first image dimensions
         outputImage = Image(image1.width, image1.height);
     }
     else if (mode == 's')
     {
+        // Use second image dimensions
         outputImage = Image(image2.width, image2.height);
     }
     else
     {
+        // Use minimum dimensions of both images
         outputImage = Image(std::min(image1.width, image2.width),
                             std::min(image1.height, image2.height));
     }
 
+    // Perform alpha blending for each pixel
     for (int row = 0; row < outputImage.height; row++)
     {
         for (int col = 0; col < outputImage.width; col++)
         {
+            // Process each color channel (RGB)
             for (int c = 0; c < 3; c++)
             {
+                // Get pixel values, using 0 if coordinates are out of bounds
                 int val1 = (row < image1.height && col < image1.width) ? image1(col, row, c) : 0;
                 int val2 = (row < image2.height && col < image2.width) ? image2(col, row, c) : 0;
 
+                // Alpha blending formula: result = alpha * val1 + (1-alpha) * val2
                 int mergedValue = static_cast<int>(alpha * val1 + (1 - alpha) * val2);
+
+                // Clamp result to valid color range [0, 255]
                 mergedValue = std::clamp(mergedValue, 0, 255);
                 outputImage(col, row, c) = mergedValue;
             }
@@ -131,14 +157,22 @@ void merge(Image &image1, Image &image2, Image &outputImage, float alpha, char m
 
 void reflect(Image &image)
 {
+    // Iterate through each row
     for (int row = 0; row < image.height; row++)
     {
+        // Only process half the width to avoid double-swapping
         for (int col = 0; col < image.width / 2; col++)
         {
+            // Swap all three color channels
             for (int k = 0; k < 3; k++)
             {
+                // Temporarily store left pixel value
                 unsigned int temp = image(col, row, k);
+
+                // Copy right pixel to left position
                 image(col, row, k) = image((image.width - 1 - col), row, k);
+
+                // Copy stored left pixel to right position
                 image((image.width - 1 - col), row, k) = temp;
             }
         }
@@ -148,82 +182,157 @@ void reflect(Image &image)
 
 void rotate(Image &image, int degrees)
 {
+    // Normalize degrees to [0, 360) range
     degrees = degrees % 360;
     if (degrees < 0)
         degrees += 360;
 
+    // Calculate number of 90-degree rotations needed
     int numRotations = degrees / 90;
     numRotations = numRotations % 4; // Normalize to [0, 3]
 
+    // Perform rotation by applying 90-degree rotations sequentially
     for (int r = 0; r < numRotations; r++)
     {
+        // Create new image with swapped dimensions (90-degree rotation effect)
         Image rotated(image.height, image.width);
+
+        // Copy pixels with 90-degree clockwise rotation transformation
         for (int row = 0; row < image.height; row++)
         {
             for (int col = 0; col < image.width; col++)
             {
-                rotated(image.height - 1 - row, col, 0) = image(col, row, 0);
-                rotated(image.height - 1 - row, col, 1) = image(col, row, 1);
-                rotated(image.height - 1 - row, col, 2) = image(col, row, 2);
+                // Rotation formula: (x,y) -> (height-1-y, x)
+                rotated(image.height - 1 - row, col, 0) = image(col, row, 0); // Red
+                rotated(image.height - 1 - row, col, 1) = image(col, row, 1); // Green
+                rotated(image.height - 1 - row, col, 2) = image(col, row, 2); // Blue
             }
         }
+
+        // Replace original image with rotated version
         image = rotated;
     }
 }
 
-// darken and lighten image
 void dnl(Image &image, int percent)
 {
-    // percent: positive to lighten, negative to darken
+    // Process each pixel in the image
     for (int row = 0; row < image.height; row++)
     {
         for (int col = 0; col < image.width; col++)
         {
+            // Process each color channel
             for (int c = 0; c < 3; c++)
             {
                 int value = image(col, row, c);
+
+                // Apply percentage adjustment: new_value = value + (value * percent / 100)
                 int newValue = value + (value * percent) / 100;
+
+                // Clamp to valid color range [0, 255]
                 if (newValue > 255)
                     newValue = 255;
                 if (newValue < 0)
                     newValue = 0;
+
                 image(col, row, c) = newValue;
             }
         }
     }
 }
 
+void crop(Image &image, int x, int y, int width, int height)
+{
+    // Validate input parameters
+    if (x < 0 || y < 0 || width <= 0 || height <= 0)
+    {
+        std::cerr << "Error: Invalid crop parameters. x, y must be non-negative, width and height must be positive." << std::endl;
+        return;
+    }
+
+    if (x >= image.width || y >= image.height)
+    {
+        std::cerr << "Error: Starting coordinates (" << x << ", " << y << ") are outside image bounds ("
+                  << image.width << " x " << image.height << ")." << std::endl;
+        return;
+    }
+
+    if (x + width > image.width || y + height > image.height)
+    {
+        std::cerr << "Error: Crop area extends beyond image bounds. Max crop size from ("
+                  << x << ", " << y << ") is " << (image.width - x) << " x " << (image.height - y) << "." << std::endl;
+        return;
+    }
+
+    if (width > image.width || height > image.height)
+    {
+        std::cerr << "Error: Crop dimensions (" << width << " x " << height
+                  << ") exceed original image dimensions (" << image.width << " x " << image.height << ")." << std::endl;
+        return;
+    }
+
+    // Create cropped image
+    Image cropped(width, height);
+
+    // Copy the specified region
+    for (int row = 0; row < height; row++)
+    {
+        for (int col = 0; col < width; col++)
+        {
+            // Copy RGB channels
+            cropped(col, row, 0) = image(x + col, y + row, 0); // Red
+            cropped(col, row, 1) = image(x + col, y + row, 1); // Green
+            cropped(col, row, 2) = image(x + col, y + row, 2); // Blue
+        }
+    }
+}
+
 void blur(Image &image, int kernelSize)
 {
+    // Ensure minimum kernel size
     if (kernelSize < 1)
         kernelSize = 1;
+
+    // Ensure odd kernel size for symmetry around center pixel
     if (kernelSize % 2 == 0)
-        kernelSize++; // Ensure odd size for symmetry
-    int radius = kernelSize / 2;
+        kernelSize++;
+
+    int radius = kernelSize / 2; // Distance from center to edge of kernel
+
+    // Create a copy of the original image to read from during processing
     Image copy = image;
+
+    // Process each pixel in the image
     for (int row = 0; row < image.height; row++)
     {
         for (int col = 0; col < image.width; col++)
         {
             int red = 0, green = 0, blue = 0, count = 0;
+
+            // Iterate through kernel area around current pixel
             for (int dr = -radius; dr <= radius; dr++)
             {
                 for (int dc = -radius; dc <= radius; dc++)
                 {
-                    int nr = row + dr;
-                    int nc = col + dc;
+                    int nr = row + dr; // Neighbor row
+                    int nc = col + dc; // Neighbor column
+
+                    // Check if neighbor coordinates are within image bounds
                     if (nr >= 0 && nr < image.height && nc >= 0 && nc < image.width)
                     {
+                        // Accumulate color values from neighboring pixels
                         red += copy(nc, nr, 0);
                         green += copy(nc, nr, 1);
                         blue += copy(nc, nr, 2);
-                        count++;
+                        count++; // Count valid neighbors for averaging
                     }
                 }
             }
-            image(col, row, 0) = round((float)red / count);
-            image(col, row, 1) = round((float)green / count);
-            image(col, row, 2) = round((float)blue / count);
+
+            // Set pixel to average of all valid neighbors
+            image(col, row, 0) = round((float)red / count);   // Red
+            image(col, row, 1) = round((float)green / count); // Green
+            image(col, row, 2) = round((float)blue / count);  // Blue
         }
     }
 }
