@@ -11,6 +11,7 @@ void reflect(Image &image);
 void rotate(Image &image, int degrees);
 void dnl(Image &image, int percent);
 void crop(Image &image, int x, int y, int width, int height);
+void edges(Image &image);
 void blur(Image &image, int kernelSize);
 
 int main(int argc, char **argv)
@@ -50,8 +51,11 @@ int main(int argc, char **argv)
     // dnl(img, -40); // darken by 40%
     // img.saveImage("darkened_output.png");
 
-    crop(img, 100, 50, 300, 200); // Crop in-place starting at (100,50) with 300x200 dimensions
-    img.saveImage("cropped_output.png");
+    // crop(img, 100, 50, 300, 200); // Crop in-place starting at (100,50) with 300x200 dimensions
+    // img.saveImage("cropped_output.png");
+
+    // edges(img);
+    // img.saveImage("edged_output.png");
 
     // blur(img, 10);
     // img.saveImage("blurred_output.png");
@@ -283,6 +287,74 @@ void crop(Image &image, int x, int y, int width, int height)
             cropped(col, row, 0) = image(x + col, y + row, 0); // Red
             cropped(col, row, 1) = image(x + col, y + row, 1); // Green
             cropped(col, row, 2) = image(x + col, y + row, 2); // Blue
+        }
+    }
+}
+
+void edges(Image &image)
+{
+    // Create a copy of the original image to read from during processing
+    Image copy = image;
+
+    // Sobel kernel for detecting vertical edges (Gx - horizontal gradients)
+    int Gx[3][3] = {{-1, 0, 1},
+                    {-2, 0, 2},
+                    {-1, 0, 1}};
+
+    // Sobel kernel for detecting horizontal edges (Gy - vertical gradients)
+    int Gy[3][3] = {{-1, -2, -1},
+                    {0, 0, 0},
+                    {1, 2, 1}};
+
+    // Process each pixel in the image
+    for (int i = 0; i < image.height; i++)
+    {
+        for (int j = 0; j < image.width; j++)
+        {
+            // Initialize gradient accumulations for each color channel
+            int Ix_red = 0, Iy_red = 0;
+            int Ix_green = 0, Iy_green = 0;
+            int Ix_blue = 0, Iy_blue = 0;
+
+            // Apply 3x3 Sobel kernels around current pixel
+            for (int di = -1; di <= 1; di++)
+            {
+                for (int dj = -1; dj <= 1; dj++)
+                {
+                    // Calculate neighbor pixel coordinates
+                    int ni = i + di;
+                    int nj = j + dj;
+
+                    // Check if neighbor coordinates are within image bounds
+                    if (ni >= 0 && ni < image.height && nj >= 0 && nj < image.width)
+                    {
+                        int gx_val = Gx[di + 1][dj + 1]; // Horizontal gradient kernel value
+                        int gy_val = Gy[di + 1][dj + 1]; // Vertical gradient kernel value
+
+                        // Accumulate gradients for red channel
+                        Ix_red += copy(nj, ni, 0) * gx_val;
+                        Iy_red += copy(nj, ni, 0) * gy_val;
+
+                        // Accumulate gradients for green channel
+                        Ix_green += copy(nj, ni, 1) * gx_val;
+                        Iy_green += copy(nj, ni, 1) * gy_val;
+
+                        // Accumulate gradients for blue channel
+                        Ix_blue += copy(nj, ni, 2) * gx_val;
+                        Iy_blue += copy(nj, ni, 2) * gy_val;
+                    }
+                }
+            }
+
+            // Calculate gradient magnitude for each color channel
+            int mag_red = round(sqrt(Ix_red * Ix_red + Iy_red * Iy_red));
+            int mag_green = round(sqrt(Ix_green * Ix_green + Iy_green * Iy_green));
+            int mag_blue = round(sqrt(Ix_blue * Ix_blue + Iy_blue * Iy_blue));
+
+            // Clamp magnitude values to valid color range [0, 255] and assign to output image
+            image(j, i, 0) = (mag_red > 255) ? 255 : mag_red;
+            image(j, i, 1) = (mag_green > 255) ? 255 : mag_green;
+            image(j, i, 2) = (mag_blue > 255) ? 255 : mag_blue;
         }
     }
 }
