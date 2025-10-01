@@ -1,0 +1,10 @@
+--bare
+-I
+/home/shade/codingProjects/fcai/my_qt_project/build
+-I
+/usr/lib/qt6/qml
+--resource
+/home/shade/codingProjects/fcai/my_qt_project/build/.qt/rcc/qmake_Main.qrc
+--resource
+/home/shade/codingProjects/fcai/my_qt_project/build/.qt/rcc/IntroToQML_raw_qml_0.qrc
+/home/shade/codingProjects/fcai/my_qt_project/Main.qml

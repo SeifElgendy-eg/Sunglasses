@@ -1,0 +1,5 @@
+--resource
+/home/shade/codingProjects/fcai/my_qt_project/build/.qt/rcc/qmake_Main.qrc
+--resource
+/home/shade/codingProjects/fcai/my_qt_project/build/.qt/rcc/IntroToQML_raw_qml_0.qrc
+/qt/qml/Main/Main.qml

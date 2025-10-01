@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <string>
 
 void grayscale(Image &image);
 void bnw(Image &image);
@@ -15,54 +16,265 @@ void frame(Image &image, int thickness, int r, int g, int b, char style = 's');
 void edges(Image &image);
 void blur(Image &image, int kernelSize);
 
+void printUsage(const char *programName)
+{
+    std::cout << "Usage: " << programName << " <input_image> [options]\n\n";
+    std::cout << "Options:\n";
+    std::cout << "  --grayscale              Convert image to grayscale\n";
+    std::cout << "  --bnw                    Convert image to black and white\n";
+    std::cout << "  --invert                 Invert image colors\n";
+    std::cout << "  --reflect                Reflect image horizontally\n";
+    std::cout << "  --rotate [degrees]       Rotate image (default: 90)\n";
+    std::cout << "  --lighten [percent]      Lighten image (default: 20%)\n";
+    std::cout << "  --darken [percent]       Darken image (default: 20%)\n";
+    std::cout << "  --crop [x y w h]         Crop image (default: center 50%)\n";
+    std::cout << "  --frame [thick r g b]    Add frame (default: 20px black)\n";
+    std::cout << "  --edges                  Apply edge detection\n";
+    std::cout << "  --blur [kernel_size]     Apply blur (default: 3)\n";
+    std::cout << "  --merge <image2> <alpha> <mode>  Merge with another image\n";
+    std::cout << "                           alpha: 0.0-1.0, mode: f/s/m\n";
+    std::cout << "  -o <output_file>         Specify output filename (default: output.png)\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << programName << " input.png --grayscale -o gray.png\n";
+    std::cout << "  " << programName << " input.png --rotate 90 -o rotated.png\n";
+    std::cout << "  " << programName << " input.png --rotate -o rotated.png  # uses default 90\n";
+    std::cout << "  " << programName << " input.png --blur 5 -o blurred.png\n";
+    std::cout << "  " << programName << " input.png --frame -o framed.png  # default black frame\n";
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        std::cerr << "Usage: " << argv[0] << " <image_filename>" << std::endl;
+        printUsage(argv[0]);
         return -1;
     }
 
     Image img(argv[1]);
-    if (img.imageData == nullptr) // Check loading of the image.
+    if (img.imageData == nullptr)
+    {
+        std::cerr << "Error: Could not load image '" << argv[1] << "'" << std::endl;
         return -2;
+    }
 
-    // grayscale(img);
-    // img.saveImage("grayscale_output.png");
+    std::string outputFile = "output.png";
+    bool filterApplied = false;
 
-    // bnw(img);
-    // img.saveImage("bnw_output.png");
+    // Parse command-line arguments
+    for (int i = 2; i < argc; i++)
+    {
+        std::string arg = argv[i];
 
-    // invert(img);
-    // img.saveImage("inverted_output.png");
+        // Convert flag to single character for switch
+        char flag = '\0';
+        if (arg == "--grayscale")
+            flag = 'g';
+        else if (arg == "--bnw")
+            flag = 'b';
+        else if (arg == "--invert")
+            flag = 'i';
+        else if (arg == "--reflect")
+            flag = 'r';
+        else if (arg == "--rotate")
+            flag = 'R';
+        else if (arg == "--lighten")
+            flag = 'l';
+        else if (arg == "--darken")
+            flag = 'd';
+        else if (arg == "--crop")
+            flag = 'c';
+        else if (arg == "--frame")
+            flag = 'f';
+        else if (arg == "--edges")
+            flag = 'e';
+        else if (arg == "--blur")
+            flag = 'B';
+        else if (arg == "--merge")
+            flag = 'm';
+        else if (arg == "-o")
+            flag = 'o';
+        else if (arg == "--help" || arg == "-h")
+            flag = 'h';
 
-    // Image img2(argv[2]); // For merge function testing
-    // Image outputImg;
-    // merge(img, img2, outputImg, 0.75, 'f');
-    // outputImg.saveImage("merged_output.png");
+        switch (flag)
+        {
+        case 'g': // grayscale
+            grayscale(img);
+            filterApplied = true;
+            break;
 
-    // reflect(img);
-    // img.saveImage("reflected_output.png");
+        case 'b': // black and white
+            bnw(img);
+            filterApplied = true;
+            break;
 
-    // rotate(img, 90);
-    // img.saveImage("rotated_output.png");
+        case 'i': // invert
+            invert(img);
+            filterApplied = true;
+            break;
 
-    // dnl(img, 20); // Lighten by 20%
-    // img.saveImage("lightened_output.png");
-    // dnl(img, -40); // darken by 40%
-    // img.saveImage("darkened_output.png");
+        case 'r': // reflect
+            reflect(img);
+            filterApplied = true;
+            break;
 
-    // crop(img, 100, 50, 300, 200); // Crop in-place starting at (100,50) with 300x200 dimensions
-    // img.saveImage("cropped_output.png");
+        case 'R': // rotate
+            if (i + 1 < argc)
+            {
+                int degrees = std::atoi(argv[++i]);
+                rotate(img, degrees);
+                filterApplied = true;
+            }
+            else
+            {
+                rotate(img, 90); // default: 90 degrees
+                filterApplied = true;
+            }
+            break;
 
-    // edges(img);
-    // img.saveImage("edged_output.png");
+        case 'l': // lighten
+            if (i + 1 < argc)
+            {
+                int percent = std::atoi(argv[++i]);
+                dnl(img, percent);
+                filterApplied = true;
+            }
+            else
+            {
+                dnl(img, 20); // default: lighten by 20%
+                filterApplied = true;
+            }
+            break;
 
-    // blur(img, 3);
-    // img.saveImage("blurred_output.png");
+        case 'd': // darken
+            if (i + 1 < argc)
+            {
+                int percent = std::atoi(argv[++i]);
+                dnl(img, -percent);
+                filterApplied = true;
+            }
+            else
+            {
+                dnl(img, -20); // default: darken by 20%
+                filterApplied = true;
+            }
+            break;
 
-    frame(img, 100, 128, 0, 128);
-    img.saveImage("framed_output.png");
+        case 'c': // crop
+            if (i + 4 < argc)
+            {
+                int x = std::atoi(argv[++i]);
+                int y = std::atoi(argv[++i]);
+                int w = std::atoi(argv[++i]);
+                int h = std::atoi(argv[++i]);
+                crop(img, x, y, w, h);
+                filterApplied = true;
+            }
+            else
+            {
+                // default: crop to center 50% of image
+                int w = img.width / 2;
+                int h = img.height / 2;
+                int x = img.width / 4;
+                int y = img.height / 4;
+                crop(img, x, y, w, h);
+                filterApplied = true;
+            }
+            break;
+
+        case 'f': // frame
+            if (i + 4 < argc)
+            {
+                int thickness = std::atoi(argv[++i]);
+                int r = std::atoi(argv[++i]);
+                int g = std::atoi(argv[++i]);
+                int b = std::atoi(argv[++i]);
+                frame(img, thickness, r, g, b);
+                filterApplied = true;
+            }
+            else
+            {
+                frame(img, 20, 0, 0, 0); // default: 20px black frame
+                filterApplied = true;
+            }
+            break;
+
+        case 'e': // edges
+            edges(img);
+            filterApplied = true;
+            break;
+
+        case 'B': // blur
+            if (i + 1 < argc)
+            {
+                int kernelSize = std::atoi(argv[++i]);
+                blur(img, kernelSize);
+                filterApplied = true;
+            }
+            else
+            {
+                std::cerr << "Error: --blur requires a kernel size value\n";
+                return -1;
+            }
+            break;
+
+        case 'm': // merge
+            if (i + 3 < argc)
+            {
+                std::string img2Path = argv[++i];
+                float alpha = std::atof(argv[++i]);
+                char mode = argv[++i][0];
+
+                Image img2(img2Path.c_str());
+                if (img2.imageData == nullptr)
+                {
+                    std::cerr << "Error: Could not load second image '" << img2Path << "'" << std::endl;
+                    return -2;
+                }
+
+                Image outputImg;
+                merge(img, img2, outputImg, alpha, mode);
+                img = outputImg;
+                filterApplied = true;
+            }
+            else
+            {
+                std::cerr << "Error: --merge requires 3 values: image2_path alpha mode\n";
+                return -1;
+            }
+            break;
+
+        case 'o': // output file
+            if (i + 1 < argc)
+            {
+                outputFile = argv[++i];
+            }
+            else
+            {
+                std::cerr << "Error: -o requires an output filename\n";
+                return -1;
+            }
+            break;
+
+        case 'h': // help
+            printUsage(argv[0]);
+            return 0;
+
+        default: // unknown option
+            std::cerr << "Error: Unknown option '" << arg << "'\n";
+            printUsage(argv[0]);
+            return -1;
+        }
+    }
+
+    if (!filterApplied)
+    {
+        std::cerr << "Warning: No filter applied. Use --help to see available options.\n";
+    }
+
+    img.saveImage(outputFile.c_str());
+    std::cout << "Image saved to: " << outputFile << std::endl;
+
     return 0;
 }
 

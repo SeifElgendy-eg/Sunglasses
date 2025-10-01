@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/qt/qml/Main">
+    <file alias="qmldir">/home/shade/codingProjects/fcai/my_qt_project/build/Main/qmldir</file>
+  </qresource>
+</RCC>
+
