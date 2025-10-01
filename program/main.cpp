@@ -3,6 +3,17 @@
 #include <cmath>
 #include <algorithm>
 
+/*
+Team Details:
+Marwan Mohamed Hassan    20240735
+Mohamed Talat Sayed      20240734
+Seifeldeen Hatem Moahmed 20242424
+
+Filters:
+Marwan  2,5,8,11
+Mohamed 1,4,7,10
+Seif    3,6,9,12
+*/
 void grayscale(Image &image);
 void bnw(Image &image);
 void invert(Image &image);
