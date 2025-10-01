@@ -11,6 +11,7 @@ void reflect(Image &image);
 void rotate(Image &image, int degrees);
 void dnl(Image &image, int percent);
 void crop(Image &image, int x, int y, int width, int height);
+void frame(Image &image, int thickness, int r, int g, int b, char style = 's');
 void edges(Image &image);
 void blur(Image &image, int kernelSize);
 
@@ -57,9 +58,11 @@ int main(int argc, char **argv)
     // edges(img);
     // img.saveImage("edged_output.png");
 
-    // blur(img, 10);
+    // blur(img, 3);
     // img.saveImage("blurred_output.png");
 
+    frame(img, 100, 128, 0, 128);
+    img.saveImage("framed_output.png");
     return 0;
 }
 
@@ -405,6 +408,52 @@ void blur(Image &image, int kernelSize)
             image(col, row, 0) = round((float)red / count);   // Red
             image(col, row, 1) = round((float)green / count); // Green
             image(col, row, 2) = round((float)blue / count);  // Blue
+        }
+    }
+}
+
+// frame function with RGB values
+void frame(Image &image, int thickness, int r, int g, int b, char style)
+{
+    // Validate frame thickness
+    if (thickness <= 0)
+    {
+        std::cerr << "Error: Frame thickness must be positive." << std::endl;
+        return;
+    }
+
+    // Ensure thickness doesn't exceed half of either dimension
+    int maxThickness = std::min(image.width, image.height) / 2;
+    if (thickness > maxThickness)
+    {
+        std::cerr << "Warning: Frame thickness too large for image. Using maximum: " << maxThickness << std::endl;
+        thickness = maxThickness;
+    }
+
+    // Clamp RGB values to valid range [0, 255]
+    r = std::clamp(r, 0, 255);
+    g = std::clamp(g, 0, 255);
+    b = std::clamp(b, 0, 255);
+
+    // Process each pixel in the image
+    for (int row = 0; row < image.height; row++)
+    {
+        for (int col = 0; col < image.width; col++)
+        {
+            bool inFrame = false;
+
+            if (style == 's') // Simple/solid frame
+            {
+                // Check if pixel is within thickness distance from any edge
+                inFrame = (row < thickness || row >= image.height - thickness || col < thickness || col >= image.width - thickness);
+            }
+
+            if (inFrame)
+            {
+                image(col, row, 0) = r;
+                image(col, row, 1) = g;
+                image(col, row, 2) = b;
+            }
         }
     }
 }
