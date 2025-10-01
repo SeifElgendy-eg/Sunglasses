@@ -14,6 +14,8 @@ void crop(Image &image, int x, int y, int width, int height);
 void frame(Image &image, int thickness, int r, int g, int b, char style = 's');
 void edges(Image &image);
 void blur(Image &image, int kernelSize);
+void resizeImage(Image &image, const string &imageName, int newWidth = -1, int newHeight = -1,
+                 double scaleFactorX = -1, double scaleFactorY = -1);
 
 int main(int argc, char **argv)
 {
@@ -456,4 +458,53 @@ void frame(Image &image, int thickness, int r, int g, int b, char style)
             }
         }
     }
+}
+
+void resizeImage(Image &image, const string &imageName, int newWidth = -1, int newHeight = -1,
+                 double scaleFactorX = -1, double scaleFactorY = -1) {
+    image.loadNewImage(imageName + ".jpg");
+
+
+    /// Getting the scale factors
+    if (scaleFactorX > 0 && scaleFactorY > 0) {
+        newWidth = static_cast<int>(scaleFactorX * image.width);
+        newHeight = static_cast<int>(scaleFactorY * image.height);
+
+        /// The scale Factors must be inverted to compute old x,y correclty
+        scaleFactorX = 1 / scaleFactorX;
+        scaleFactorY = 1 / scaleFactorY;
+
+        /// Kepping the aspect ratio when one scaling factor is only given
+    } else if (scaleFactorX > 0 && scaleFactorY == -1) {
+        newWidth = static_cast<int>(scaleFactorX * image.width);
+        scaleFactorX = 1 / scaleFactorX;
+        scaleFactorY = scaleFactorX;
+        newHeight = static_cast<int>(1 / scaleFactorY * image.height);
+    } else if (scaleFactorX == -1 && scaleFactorY > 0) {
+        newHeight = static_cast<int>(scaleFactorY * image.height);
+        scaleFactorY = 1 / scaleFactorY;
+        scaleFactorX = scaleFactorY;
+        newWidth = static_cast<int>(1 / scaleFactorX * image.width);
+    } else if (newWidth > 0 && newHeight > 0) {
+        scaleFactorX = static_cast<double>(image.width) / newWidth;
+        scaleFactorY = static_cast<double>(image.height) / newHeight;
+    } else {
+        throw invalid_argument("You must provide Either new width and height or x,y scaling factors");
+    }
+
+    Image resizedImage(newWidth, newHeight);
+
+    for (int i = 0; i < resizedImage.width; i++) {
+        for (int j = 0; j < resizedImage.height; j++) {
+            for (int k = 0; k <= 2; k++) {
+                /// Locating old pixels to be copied
+                const int oldX = static_cast<int>(round(i * scaleFactorX));
+                const int oldY = static_cast<int>(round(j * scaleFactorY));
+
+                /// Nearest Neighbor Interpolation Applied
+                resizedImage(i, j, k) = image(oldX, oldY, k);
+            }
+        }
+    }
+    resizedImage.saveImage(imageName + "_output_resized.jpg");
 }
