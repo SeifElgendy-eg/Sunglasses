@@ -485,7 +485,7 @@ void resizeImage(Image &image, const string &imageName, int newWidth = -1, int n
         scaleFactorX = 1 / scaleFactorX;
         scaleFactorY = 1 / scaleFactorY;
 
-        /// Kepping the aspect ratio when one scaling factor is only given
+        /// Kepping the aspect ratio when only one scaling factor is given
     } else if (scaleFactorX > 0 && scaleFactorY == -1) {
         newWidth = static_cast<int>(scaleFactorX * image.width);
         scaleFactorX = 1 / scaleFactorX;
