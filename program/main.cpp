@@ -17,6 +17,10 @@ Seif    3,6,9,12
 #include <cmath>
 #include <algorithm>
 #include <string>
+#include <vector>
+#include <random>
+#include <chrono>
+#include <limits>
 
 void grayscale(Image &image);
 void bnw(Image &image);
@@ -31,6 +35,8 @@ void edges(Image &image);
 void blur(Image &image, int kernelSize);
 void resizeImage(Image &image, const std::string &imageName, int newWidth = -1, int newHeight = -1,
                  double scaleFactorX = -1, double scaleFactorY = -1);
+Image resizeImageInMemory(Image &image, int newWidth, int newHeight);
+void morph(Image &sourceImage, Image &targetImage, Image &weightsImage);
 
 void printUsage(const char *programName)
 {
@@ -49,14 +55,15 @@ void printUsage(const char *programName)
     std::cout << "  --blur [kernel_size]     Apply blur (default: 3)\n";
     std::cout << "  --merge <image2> <alpha> <mode>  Merge with another image\n";
     std::cout << "                           alpha: 0.0-1.0, mode: f/s/m\n";
-    std::cout << "  --resize [w h] [sx sy]   Resize image by width/height or scale factors\n";
+    std::cout << "  --resize [w h]           Resize image by width and height\n";
+    std::cout << "  --morph <target> [weights]  Morph source to target (optional: weights)\n";
     std::cout << "  -o <output_file>         Specify output filename (default: output.png)\n\n";
     std::cout << "Examples:\n";
     std::cout << "  " << programName << " input.png --grayscale -o gray.png\n";
     std::cout << "  " << programName << " input.png --rotate 90 -o rotated.png\n";
-    std::cout << "  " << programName << " input.png --rotate -o rotated.png  # uses default 90\n";
     std::cout << "  " << programName << " input.png --blur 5 -o blurred.png\n";
-    std::cout << "  " << programName << " input.png --frame -o framed.png  # default black frame\n";
+    std::cout << "  " << programName << " source.png --morph target.png weights.png -o morphed.png\n";
+    std::cout << "  " << programName << " source.png --morph target.png -o morphed.png  # no weights\n";
 }
 
 int main(int argc, char **argv)
@@ -112,6 +119,8 @@ int main(int argc, char **argv)
             flag = 'o';
         else if (arg == "--resize")
             flag = 'z';
+        else if (arg == "--morph")
+            flag = 'M';
         else if (arg == "--help" || arg == "-h")
             flag = 'h';
 
@@ -274,39 +283,71 @@ int main(int argc, char **argv)
                 return -1;
             }
             break;
+
         case 'z': // resize
             if (i + 2 < argc)
             {
                 int newWidth = std::atoi(argv[++i]);
                 int newHeight = std::atoi(argv[++i]);
 
-                double scaleFactorX = static_cast<double>(img.width) / newWidth;
-                double scaleFactorY = static_cast<double>(img.height) / newHeight;
-
-                Image resizedImage(newWidth, newHeight);
-
-                for (int row = 0; row < newHeight; row++)
-                {
-                    for (int col = 0; col < newWidth; col++)
-                    {
-                        for (int k = 0; k <= 2; k++)
-                        {
-                            const int oldX = static_cast<int>(round(col * scaleFactorX));
-                            const int oldY = static_cast<int>(round(row * scaleFactorY));
-
-                            if (oldX >= 0 && oldX < img.width && oldY >= 0 && oldY < img.height)
-                            {
-                                resizedImage(col, row, k) = img(oldX, oldY, k);
-                            }
-                        }
-                    }
-                }
-                img = resizedImage;
+                img = resizeImageInMemory(img, newWidth, newHeight);
                 filterApplied = true;
             }
             else
             {
                 std::cerr << "Error: --resize requires 2 values: newWidth newHeight\n";
+                return -1;
+            }
+            break;
+
+        case 'M': // morph
+            if (i + 1 < argc)
+            {
+                std::string targetPath = argv[++i];
+                Image targetImg(targetPath.c_str());
+
+                if (targetImg.imageData == nullptr)
+                {
+                    std::cerr << "Error: Could not load target image '" << targetPath << "'" << std::endl;
+                    return -2;
+                }
+
+                // Check if weights image is provided (optional)
+                Image weightsImg;
+                if (i + 1 < argc && argv[i + 1][0] != '-')
+                {
+                    // Weights image provided
+                    std::string weightsPath = argv[++i];
+                    weightsImg = Image(weightsPath.c_str());
+
+                    if (weightsImg.imageData == nullptr)
+                    {
+                        std::cerr << "Error: Could not load weights image '" << weightsPath << "'" << std::endl;
+                        return -2;
+                    }
+                }
+                else
+                {
+                    // No weights image provided - create uniform white weights
+                    weightsImg = Image(targetImg.width, targetImg.height);
+                    for (int row = 0; row < weightsImg.height; row++)
+                    {
+                        for (int col = 0; col < weightsImg.width; col++)
+                        {
+                            weightsImg(col, row, 0) = 255;
+                            weightsImg(col, row, 1) = 255;
+                            weightsImg(col, row, 2) = 255;
+                        }
+                    }
+                    std::cout << "No weights image provided - using uniform weights (all areas equally important)\n";
+                }
+
+                morph(img, targetImg, weightsImg);
+                filterApplied = true;
+            }
+            else
+            {
+                std::cerr << "Error: --morph requires at least 1 value: target_image [weights_image]\n";
                 return -1;
             }
             break;
@@ -725,6 +766,30 @@ void frame(Image &image, int thickness, int r, int g, int b, char style)
     }
 }
 
+Image resizeImageInMemory(Image &image, int newWidth, int newHeight)
+{
+    double scaleFactorX = static_cast<double>(image.width) / newWidth;
+    double scaleFactorY = static_cast<double>(image.height) / newHeight;
+    Image resizedImage(newWidth, newHeight);
+
+    for (int row = 0; row < newHeight; row++)
+    {
+        for (int col = 0; col < newWidth; col++)
+        {
+            for (int k = 0; k <= 2; k++)
+            {
+                const int oldX = static_cast<int>(round(col * scaleFactorX));
+                const int oldY = static_cast<int>(round(row * scaleFactorY));
+                if (oldX >= 0 && oldX < image.width && oldY >= 0 && oldY < image.height)
+                {
+                    resizedImage(col, row, k) = image(oldX, oldY, k);
+                }
+            }
+        }
+    }
+    return resizedImage;
+}
+
 void resizeImage(Image &image, const std::string &imageName, int newWidth, int newHeight,
                  double scaleFactorX, double scaleFactorY)
 {
@@ -736,11 +801,11 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
         newWidth = static_cast<int>(scaleFactorX * image.width);
         newHeight = static_cast<int>(scaleFactorY * image.height);
 
-        /// The scale Factors must be inverted to compute old x,y correclty
+        /// The scale Factors must be inverted to compute old x,y correctly
         scaleFactorX = 1 / scaleFactorX;
         scaleFactorY = 1 / scaleFactorY;
 
-        /// Kepping the aspect ratio when only one scaling factor is given
+        /// Keeping the aspect ratio when only one scaling factor is given
     }
     else if (scaleFactorX > 0 && scaleFactorY == -1)
     {
@@ -766,22 +831,114 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
         throw std::invalid_argument("You must provide Either new width and height or x,y scaling factors");
     }
 
-    Image resizedImage(newWidth, newHeight);
+    image = resizeImageInMemory(image, newWidth, newHeight);
+    image.saveImage(imageName + "_output_resized.jpg");
+}
 
-    for (int i = 0; i < resizedImage.width; i++)
+void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
+{
+    // Step 1: Resize source to match target dimensions
+    if (sourceImage.width != targetImage.width || sourceImage.height != targetImage.height)
     {
-        for (int j = 0; j < resizedImage.height; j++)
-        {
-            for (int k = 0; k <= 2; k++)
-            {
-                /// Locating old pixels to be copied
-                const int oldX = static_cast<int>(round(i * scaleFactorX));
-                const int oldY = static_cast<int>(round(j * scaleFactorY));
+        sourceImage = resizeImageInMemory(sourceImage, targetImage.width, targetImage.height);
+    }
 
-                /// Nearest Neighbor Interpolation Applied
-                resizedImage(i, j, k) = image(oldX, oldY, k);
+    // Step 2: Resize weights to match target dimensions
+    if (weightsImage.width != targetImage.width || weightsImage.height != targetImage.height)
+    {
+        weightsImage = resizeImageInMemory(weightsImage, targetImage.width, targetImage.height);
+    }
+
+    // Step 3: Convert weights to grayscale
+    grayscale(weightsImage);
+
+    // Step 4: Collect all source pixels into a pool
+    std::vector<int> availablePixels; // Store flat indices
+    for (int row = 0; row < sourceImage.height; row++)
+    {
+        for (int col = 0; col < sourceImage.width; col++)
+        {
+            availablePixels.push_back(row * sourceImage.width + col);
+        }
+    }
+
+    // Step 5: Shuffle pixel pool for randomness
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine rng(seed);
+    std::shuffle(availablePixels.begin(), availablePixels.end(), rng);
+
+    // Step 6: Track which source pixels have been used
+    std::vector<bool> pixelUsed(availablePixels.size(), false);
+
+    // Step 7: Create morphed image
+    Image morphedImage(targetImage.width, targetImage.height);
+
+    // Step 8: For each target pixel, find best matching available source pixel
+    for (int row = 0; row < targetImage.height; row++)
+    {
+        for (int col = 0; col < targetImage.width; col++)
+        {
+            // Get target pixel RGB values
+            int targetR = targetImage(col, row, 0);
+            int targetG = targetImage(col, row, 1);
+            int targetB = targetImage(col, row, 2);
+            int weight = weightsImage(col, row, 0);
+
+            double minDistance = std::numeric_limits<double>::max();
+            int bestPixelIndex = -1;
+
+            // Search through all available source pixels
+            for (size_t k = 0; k < availablePixels.size(); k++)
+            {
+                if (!pixelUsed[k])
+                {
+                    // Get source pixel coordinates from flat index
+                    int srcRow = availablePixels[k] / sourceImage.width;
+                    int srcCol = availablePixels[k] % sourceImage.width;
+
+                    // Get source pixel RGB values
+                    int sourceR = sourceImage(srcCol, srcRow, 0);
+                    int sourceG = sourceImage(srcCol, srcRow, 1);
+                    int sourceB = sourceImage(srcCol, srcRow, 2);
+
+                    // Calculate Euclidean color distance
+                    double r_diff = targetR - sourceR;
+                    double g_diff = targetG - sourceG;
+                    double b_diff = targetB - sourceB;
+                    double dist = std::sqrt(r_diff * r_diff + g_diff * g_diff + b_diff * b_diff);
+
+                    // Apply weight: higher weight = penalize mismatches more
+                    dist = dist * (1.0 + (double)weight / 255.0);
+
+                    if (dist < minDistance)
+                    {
+                        minDistance = dist;
+                        bestPixelIndex = k;
+                    }
+                }
+            }
+
+            // Assign best matching pixel
+            if (bestPixelIndex != -1)
+            {
+                int srcRow = availablePixels[bestPixelIndex] / sourceImage.width;
+                int srcCol = availablePixels[bestPixelIndex] % sourceImage.width;
+
+                morphedImage(col, row, 0) = sourceImage(srcCol, srcRow, 0);
+                morphedImage(col, row, 1) = sourceImage(srcCol, srcRow, 1);
+                morphedImage(col, row, 2) = sourceImage(srcCol, srcRow, 2);
+
+                pixelUsed[bestPixelIndex] = true;
+            }
+            else
+            {
+                // Fallback: black pixel (shouldn't happen if source >= target pixels)
+                morphedImage(col, row, 0) = 0;
+                morphedImage(col, row, 1) = 0;
+                morphedImage(col, row, 2) = 0;
             }
         }
     }
-    resizedImage.saveImage(imageName + "_output_resized.jpg");
+
+    sourceImage = morphedImage;
 }
