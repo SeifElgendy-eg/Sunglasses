@@ -36,7 +36,7 @@ void blur(Image &image, int kernelSize);
 void resizeImage(Image &image, const std::string &imageName, int newWidth = -1, int newHeight = -1,
                  double scaleFactorX = -1, double scaleFactorY = -1);
 Image resizeImageInMemory(Image &image, int newWidth, int newHeight);
-void morph(Image &sourceImage, Image &targetImage, Image &weightsImage);
+void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor = 0.5);
 
 void printUsage(const char *programName)
 {
@@ -64,6 +64,7 @@ void printUsage(const char *programName)
     std::cout << "  " << programName << " input.png --blur 5 -o blurred.png\n";
     std::cout << "  " << programName << " source.png --morph target.png weights.png -o morphed.png\n";
     std::cout << "  " << programName << " source.png --morph target.png -o morphed.png  # no weights\n";
+    std::cout << "  " << programName << " source.png --morph target.png --blend 0.8 -o result.png\n";
 }
 
 int main(int argc, char **argv)
@@ -766,6 +767,7 @@ void frame(Image &image, int thickness, int r, int g, int b, char style)
     }
 }
 
+// Helper function to resize an image in memory (reusable for any filter)
 Image resizeImageInMemory(Image &image, int newWidth, int newHeight)
 {
     double scaleFactorX = static_cast<double>(image.width) / newWidth;
@@ -831,6 +833,7 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
         throw std::invalid_argument("You must provide Either new width and height or x,y scaling factors");
     }
 
+    // Use the helper function instead of duplicating code
     image = resizeImageInMemory(image, newWidth, newHeight);
     image.saveImage(imageName + "_output_resized.jpg");
 }
@@ -940,5 +943,7 @@ void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
         }
     }
 
+    // Step 9: Replace source image with morphed result
     sourceImage = morphedImage;
+    std::cout << "Morphing completed." << std::endl;
 }
