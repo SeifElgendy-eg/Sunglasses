@@ -13,6 +13,7 @@ Seif    3,6,9,12
 */
 
 #include <Image_Class.h>
+#include "gif.h" // Include gif.h for GIF creation
 #include <iostream>
 #include <cmath>
 #include <algorithm>
@@ -21,6 +22,7 @@ Seif    3,6,9,12
 #include <random>
 #include <chrono>
 #include <limits>
+#include <cstdint> // Required for uint8_t
 
 void grayscale(Image &image);
 void bnw(Image &image);
@@ -37,6 +39,69 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth = -1, 
                  double scaleFactorX = -1, double scaleFactorY = -1);
 Image resizeImageInMemory(Image &image, int newWidth, int newHeight);
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor = 0.5);
+void morphAnimated(Image &sourceImage, Image &targetImage, Image &weightsImage, const std::string &outputPath,
+                   int frameCount = 30, double blendFactor = 0.5);
+// *** SYNTAX FIX: Complete prototype for morphOptimized added here ***
+void morphOptimized(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor,
+                    std::vector<int> &pixelMapping);
+
+// *** LOGIC FIX: The morph function now implements Warping + Blending ***
+void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor)
+{
+    // Step 1: Resize images to match target dimensions
+    if (sourceImage.width != targetImage.width || sourceImage.height != targetImage.height)
+    {
+        sourceImage = resizeImageInMemory(sourceImage, targetImage.width, targetImage.height);
+    }
+
+    if (weightsImage.width != targetImage.width || weightsImage.height != targetImage.height)
+    {
+        weightsImage = resizeImageInMemory(weightsImage, targetImage.width, targetImage.height);
+    }
+
+    grayscale(weightsImage);
+
+    // Step 2: Use optimized morphing algorithm to create the pixel warp map
+    std::vector<int> pixelMapping;
+    morphOptimized(sourceImage, targetImage, weightsImage, blendFactor, pixelMapping);
+
+    // Step 3: Apply pixel mapping (WARP) and then BLEND the warped source with the target image
+    Image morphedImage(targetImage.width, targetImage.height);
+    int width = targetImage.width;
+    double alpha = blendFactor; // Blend factor: 1.0 = source, 0.0 = target
+
+    for (int row = 0; row < targetImage.height; row++)
+    {
+        for (int col = 0; col < targetImage.width; col++)
+        {
+            int targetIdx = row * width + col;
+            int sourceIdx = pixelMapping[targetIdx];
+            int srcRow = sourceIdx / width;
+            int srcCol = sourceIdx % width;
+
+            // Get Warped Source Color
+            int warpedR = sourceImage(srcCol, srcRow, 0);
+            int warpedG = sourceImage(srcCol, srcRow, 1);
+            int warpedB = sourceImage(srcCol, srcRow, 2);
+
+            // Get Target Color
+            int targetR = targetImage(col, row, 0);
+            int targetG = targetImage(col, row, 1);
+            int targetB = targetImage(col, row, 2);
+
+            // Color Blending: alpha * Warped_Source + (1.0 - alpha) * Target
+            morphedImage(col, row, 0) = static_cast<unsigned char>(
+                std::clamp(static_cast<int>(alpha * warpedR + (1.0 - alpha) * targetR), 0, 255));
+            morphedImage(col, row, 1) = static_cast<unsigned char>(
+                std::clamp(static_cast<int>(alpha * warpedG + (1.0 - alpha) * targetG), 0, 255));
+            morphedImage(col, row, 2) = static_cast<unsigned char>(
+                std::clamp(static_cast<int>(alpha * warpedB + (1.0 - alpha) * targetB), 0, 255));
+        }
+    }
+
+    sourceImage = morphedImage;
+    std::cout << "Morphing completed with blend factor: " << blendFactor << std::endl;
+}
 
 void printUsage(const char *programName)
 {
@@ -57,6 +122,8 @@ void printUsage(const char *programName)
     std::cout << "                           alpha: 0.0-1.0, mode: f/s/m\n";
     std::cout << "  --resize [w h]           Resize image by width and height\n";
     std::cout << "  --morph <target> [weights]  Morph source to target (optional: weights)\n";
+    std::cout << "  --blend <0.0-1.0>        Set morph blend (0=match target, 1=keep source)\n";
+    std::cout << "  --animate [frames]       Create animated GIF (default: 30 frames)\n";
     std::cout << "  -o <output_file>         Specify output filename (default: output.png)\n\n";
     std::cout << "Examples:\n";
     std::cout << "  " << programName << " input.png --grayscale -o gray.png\n";
@@ -65,6 +132,8 @@ void printUsage(const char *programName)
     std::cout << "  " << programName << " source.png --morph target.png weights.png -o morphed.png\n";
     std::cout << "  " << programName << " source.png --morph target.png -o morphed.png  # no weights\n";
     std::cout << "  " << programName << " source.png --morph target.png --blend 0.8 -o result.png\n";
+    std::cout << "  " << programName << " source.png --morph target.png --animate -o anim.gif\n";
+    std::cout << "  " << programName << " source.png --morph target.png --animate 60 -o anim.gif\n";
 }
 
 int main(int argc, char **argv)
@@ -84,6 +153,14 @@ int main(int argc, char **argv)
 
     std::string outputFile = "output.png";
     bool filterApplied = false;
+    double morphBlendFactor = 0.5; // Default: balanced between source and target
+    bool animateMode = false;      // Whether to create animated GIF
+    int animateFrames = 30;        // Default frame count for animation
+
+    // Store morph parameters to execute after all flags are parsed
+    bool morphPending = false;
+    Image *pendingTargetImg = nullptr;
+    Image *pendingWeightsImg = nullptr;
 
     // Parse command-line arguments
     for (int i = 2; i < argc; i++)
@@ -122,6 +199,10 @@ int main(int argc, char **argv)
             flag = 'z';
         else if (arg == "--morph")
             flag = 'M';
+        else if (arg == "--blend")
+            flag = 'X';
+        else if (arg == "--animate")
+            flag = 'A';
         else if (arg == "--help" || arg == "-h")
             flag = 'h';
 
@@ -305,51 +386,90 @@ int main(int argc, char **argv)
             if (i + 1 < argc)
             {
                 std::string targetPath = argv[++i];
-                Image targetImg(targetPath.c_str());
+                pendingTargetImg = new Image(targetPath.c_str());
 
-                if (targetImg.imageData == nullptr)
+                if (pendingTargetImg->imageData == nullptr)
                 {
                     std::cerr << "Error: Could not load target image '" << targetPath << "'" << std::endl;
+                    delete pendingTargetImg;
                     return -2;
                 }
 
                 // Check if weights image is provided (optional)
-                Image weightsImg;
                 if (i + 1 < argc && argv[i + 1][0] != '-')
                 {
                     // Weights image provided
                     std::string weightsPath = argv[++i];
-                    weightsImg = Image(weightsPath.c_str());
+                    pendingWeightsImg = new Image(weightsPath.c_str());
 
-                    if (weightsImg.imageData == nullptr)
+                    if (pendingWeightsImg->imageData == nullptr)
                     {
                         std::cerr << "Error: Could not load weights image '" << weightsPath << "'" << std::endl;
+                        delete pendingTargetImg;
+                        delete pendingWeightsImg;
                         return -2;
                     }
                 }
                 else
                 {
                     // No weights image provided - create uniform white weights
-                    weightsImg = Image(targetImg.width, targetImg.height);
-                    for (int row = 0; row < weightsImg.height; row++)
+                    pendingWeightsImg = new Image(img.width, img.height);
+                    for (int row = 0; row < pendingWeightsImg->height; row++)
                     {
-                        for (int col = 0; col < weightsImg.width; col++)
+                        for (int col = 0; col < pendingWeightsImg->width; col++)
                         {
-                            weightsImg(col, row, 0) = 255;
-                            weightsImg(col, row, 1) = 255;
-                            weightsImg(col, row, 2) = 255;
+                            (*pendingWeightsImg)(col, row, 0) = 255;
+                            (*pendingWeightsImg)(col, row, 1) = 255;
+                            (*pendingWeightsImg)(col, row, 2) = 255;
                         }
                     }
                     std::cout << "No weights image provided - using uniform weights (all areas equally important)\n";
                 }
 
-                morph(img, targetImg, weightsImg);
+                morphPending = true;
                 filterApplied = true;
             }
             else
             {
                 std::cerr << "Error: --morph requires at least 1 value: target_image [weights_image]\n";
                 return -1;
+            }
+            break;
+
+        case 'X': // blend factor for morph
+            if (i + 1 < argc)
+            {
+                morphBlendFactor = std::atof(argv[++i]);
+                if (morphBlendFactor < 0.0 || morphBlendFactor > 1.0)
+                {
+                    std::cerr << "Warning: Blend factor should be between 0.0 and 1.0. Clamping value.\n";
+                    morphBlendFactor = std::clamp(morphBlendFactor, 0.0, 1.0);
+                }
+                std::cout << "Morph blend factor set to: " << morphBlendFactor << "\n";
+            }
+            else
+            {
+                std::cerr << "Error: --blend requires a value between 0.0 and 1.0\n";
+                return -1;
+            }
+            break;
+
+        case 'A': // animate flag
+            animateMode = true;
+            // Check if frame count is provided (optional)
+            if (i + 1 < argc && argv[i + 1][0] != '-')
+            {
+                animateFrames = std::atoi(argv[++i]);
+                if (animateFrames < 2)
+                {
+                    std::cerr << "Warning: Frame count should be at least 2. Setting to 2.\n";
+                    animateFrames = 2;
+                }
+                std::cout << "Animation mode enabled with " << animateFrames << " frames\n";
+            }
+            else
+            {
+                std::cout << "Animation mode enabled with default " << animateFrames << " frames\n";
             }
             break;
 
@@ -367,6 +487,31 @@ int main(int argc, char **argv)
     if (!filterApplied)
     {
         std::cerr << "Warning: No filter applied. Use --help to see available options.\n";
+    }
+
+    // Execute morph if pending (after all flags are parsed)
+    if (morphPending)
+    {
+        if (animateMode)
+        {
+            // Create animated GIF
+            morphAnimated(img, *pendingTargetImg, *pendingWeightsImg, outputFile, animateFrames, morphBlendFactor);
+            std::cout << "Animated GIF saved to: " << outputFile << std::endl;
+
+            // Clean up
+            delete pendingTargetImg;
+            delete pendingWeightsImg;
+            return 0; // Exit after creating GIF
+        }
+        else
+        {
+            // Create still image
+            morph(img, *pendingTargetImg, *pendingWeightsImg, morphBlendFactor);
+
+            // Clean up
+            delete pendingTargetImg;
+            delete pendingWeightsImg;
+        }
     }
 
     img.saveImage(outputFile.c_str());
@@ -566,41 +711,35 @@ void crop(Image &image, int x, int y, int width, int height)
         return;
     }
 
-    if (x >= image.width || y >= image.height)
-    {
-        std::cerr << "Error: Starting coordinates (" << x << ", " << y << ") are outside image bounds ("
-                  << image.width << " x " << image.height << ")." << std::endl;
-        return;
-    }
+    // Adjust crop area to fit within image bounds
+    int startX = std::max(0, x);
+    int startY = std::max(0, y);
+    int cropWidth = std::min(width, image.width - startX);
+    int cropHeight = std::min(height, image.height - startY);
 
-    if (x + width > image.width || y + height > image.height)
+    if (startX >= image.width || startY >= image.height || cropWidth <= 0 || cropHeight <= 0)
     {
-        std::cerr << "Error: Crop area extends beyond image bounds. Max crop size from ("
-                  << x << ", " << y << ") is " << (image.width - x) << " x " << (image.height - y) << "." << std::endl;
-        return;
-    }
-
-    if (width > image.width || height > image.height)
-    {
-        std::cerr << "Error: Crop dimensions (" << width << " x " << height
-                  << ") exceed original image dimensions (" << image.width << " x " << image.height << ")." << std::endl;
+        std::cerr << "Error: Crop area is outside or results in zero size. No cropping performed." << std::endl;
         return;
     }
 
     // Create cropped image
-    Image cropped(width, height);
+    Image cropped(cropWidth, cropHeight);
 
     // Copy the specified region
-    for (int row = 0; row < height; row++)
+    for (int row = 0; row < cropHeight; row++)
     {
-        for (int col = 0; col < width; col++)
+        for (int col = 0; col < cropWidth; col++)
         {
             // Copy RGB channels
-            cropped(col, row, 0) = image(x + col, y + row, 0); // Red
-            cropped(col, row, 1) = image(x + col, y + row, 1); // Green
-            cropped(col, row, 2) = image(x + col, y + row, 2); // Blue
+            cropped(col, row, 0) = image(startX + col, startY + row, 0); // Red
+            cropped(col, row, 1) = image(startX + col, startY + row, 1); // Green
+            cropped(col, row, 2) = image(startX + col, startY + row, 2); // Blue
         }
     }
+
+    // *** LOGIC FIX: Replace original image with the cropped one (Missing in user's latest provided code) ***
+    image = cropped;
 }
 
 void edges(Image &image)
@@ -795,155 +934,433 @@ Image resizeImageInMemory(Image &image, int newWidth, int newHeight)
 void resizeImage(Image &image, const std::string &imageName, int newWidth, int newHeight,
                  double scaleFactorX, double scaleFactorY)
 {
-    image.loadNewImage(imageName + ".jpg");
+    // Determine new dimensions if not explicitly provided
+    if (newWidth == -1 && scaleFactorX != -1)
+        newWidth = static_cast<int>(image.width * scaleFactorX);
+    if (newHeight == -1 && scaleFactorY != -1)
+        newHeight = static_cast<int>(image.height * scaleFactorY);
 
-    /// Getting the scale factors
+    // Handle scaling factor inversion for new logic (copied from user's provided logic)
     if (scaleFactorX > 0 && scaleFactorY > 0)
     {
         newWidth = static_cast<int>(scaleFactorX * image.width);
         newHeight = static_cast<int>(scaleFactorY * image.height);
-
-        /// The scale Factors must be inverted to compute old x,y correctly
-        scaleFactorX = 1 / scaleFactorX;
-        scaleFactorY = 1 / scaleFactorY;
-
-        /// Keeping the aspect ratio when only one scaling factor is given
     }
     else if (scaleFactorX > 0 && scaleFactorY == -1)
     {
         newWidth = static_cast<int>(scaleFactorX * image.width);
-        scaleFactorX = 1 / scaleFactorX;
-        scaleFactorY = scaleFactorX;
-        newHeight = static_cast<int>(1 / scaleFactorY * image.height);
+        newHeight = static_cast<int>((double)newWidth / image.width * image.height); // Maintain aspect ratio
     }
     else if (scaleFactorX == -1 && scaleFactorY > 0)
     {
         newHeight = static_cast<int>(scaleFactorY * image.height);
-        scaleFactorY = 1 / scaleFactorY;
-        scaleFactorX = scaleFactorY;
-        newWidth = static_cast<int>(1 / scaleFactorX * image.width);
+        newWidth = static_cast<int>((double)newHeight / image.height * image.width); // Maintain aspect ratio
     }
-    else if (newWidth > 0 && newHeight > 0)
+    else if (newWidth <= 0 || newHeight <= 0)
     {
-        scaleFactorX = static_cast<double>(image.width) / newWidth;
-        scaleFactorY = static_cast<double>(image.height) / newHeight;
-    }
-    else
-    {
-        throw std::invalid_argument("You must provide Either new width and height or x,y scaling factors");
+        std::cerr << "Error: Invalid dimensions for resize." << std::endl;
+        return;
     }
 
-    // Use the helper function instead of duplicating code
     image = resizeImageInMemory(image, newWidth, newHeight);
-    image.saveImage(imageName + "_output_resized.jpg");
 }
 
-void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
+// Optimized morph function with multiple speed improvements
+void morphOptimized(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor,
+                    std::vector<int> &pixelMapping)
 {
-    // Step 1: Resize source to match target dimensions
+    int width = targetImage.width;
+    int height = targetImage.height;
+    int pixelCount = width * height;
+
+    // Step 1: Create color buckets for faster search (quantize to 16x16x16 = 4096 buckets)
+    const int BUCKET_SIZE = 16; // Divide each RGB channel into 16 levels
+    const int BUCKET_COUNT = BUCKET_SIZE * BUCKET_SIZE * BUCKET_SIZE;
+
+    std::vector<std::vector<int>> colorBuckets(BUCKET_COUNT);
+
+    // Populate buckets with source pixel indices
+    for (int row = 0; row < height; row++)
+    {
+        for (int col = 0; col < width; col++)
+        {
+            int idx = row * width + col;
+            int r = sourceImage(col, row, 0) / 16; // Quantize 0-255 to 0-15
+            int g = sourceImage(col, row, 1) / 16;
+            int b = sourceImage(col, row, 2) / 16;
+            int bucketIdx = (r * BUCKET_SIZE * BUCKET_SIZE) + (g * BUCKET_SIZE) + b;
+            colorBuckets[bucketIdx].push_back(idx);
+        }
+    }
+
+    // Step 2: Shuffle buckets for randomness
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine rng(seed);
+    for (auto &bucket : colorBuckets)
+    {
+        std::shuffle(bucket.begin(), bucket.end(), rng);
+    }
+
+    std::vector<bool> pixelUsed(pixelCount, false);
+    pixelMapping.resize(pixelCount);
+
+    // Step 3: Process each target pixel with optimized search
+    int pixelsProcessed = 0;
+
+    for (int row = 0; row < height; row++)
+    {
+        for (int col = 0; col < width; col++)
+        {
+            int targetR = targetImage(col, row, 0);
+            int targetG = targetImage(col, row, 1);
+            int targetB = targetImage(col, row, 2);
+            int weight = weightsImage(col, row, 0);
+            int targetFlatIdx = row * width + col;
+
+            // Determine search quality based on weight
+            // High weight areas get more thorough search
+            int maxChecks = 200 + (weight * 800 / 255); // 200-1000 checks based on weight
+
+            // Calculate target color bucket
+            int targetBucketR = targetR / 16;
+            int targetBucketG = targetG / 16;
+            int targetBucketB = targetB / 16;
+
+            double minDistance = std::numeric_limits<double>::max();
+            int bestPixelIndex = -1;
+            int checksPerformed = 0;
+            bool foundMatch = false;
+
+            // Search strategy: Check nearby color buckets first
+            for (int dr = -1; dr <= 1 && !foundMatch && checksPerformed < maxChecks; dr++)
+            {
+                for (int dg = -1; dg <= 1 && !foundMatch && checksPerformed < maxChecks; dg++)
+                {
+                    for (int db = -1; db <= 1 && !foundMatch && checksPerformed < maxChecks; db++)
+                    {
+                        int br = targetBucketR + dr;
+                        int bg = targetBucketG + dg;
+                        int bb = targetBucketB + db;
+
+                        // Bounds checking
+                        if (br < 0 || br >= BUCKET_SIZE || bg < 0 || bg >= BUCKET_SIZE ||
+                            bb < 0 || bb >= BUCKET_SIZE)
+                            continue;
+
+                        int bucketIdx = (br * BUCKET_SIZE * BUCKET_SIZE) + (bg * BUCKET_SIZE) + bb;
+
+                        // Search this bucket
+                        for (size_t i = 0; i < colorBuckets[bucketIdx].size() && !foundMatch && checksPerformed < maxChecks; i++)
+                        {
+                            int srcFlatIdx = colorBuckets[bucketIdx][i];
+
+                            if (!pixelUsed[srcFlatIdx])
+                            {
+                                checksPerformed++;
+
+                                int srcRow = srcFlatIdx / width;
+                                int srcCol = srcFlatIdx % width;
+
+                                int sourceR = sourceImage(srcCol, srcRow, 0);
+                                int sourceG = sourceImage(srcCol, srcRow, 1);
+                                int sourceB = sourceImage(srcCol, srcRow, 2);
+
+                                // Calculate distance
+                                double r_diff = targetR - sourceR;
+                                double g_diff = targetG - sourceG;
+                                double b_diff = targetB - sourceB;
+                                double colorDist = std::sqrt(r_diff * r_diff + g_diff * g_diff + b_diff * b_diff);
+
+                                // Position distance calculation (Euclidean distance is better than flat index difference)
+                                double pos_diff_col = col - srcCol;
+                                double pos_diff_row = row - srcRow;
+                                double positionDist = std::sqrt(pos_diff_col * pos_diff_col + pos_diff_row * pos_diff_row);
+
+                                // Normalize position distance to similar scale as color (max color diff is ~441)
+                                double max_pos_dist = std::sqrt(width * width + height * height);
+                                positionDist = positionDist / max_pos_dist * 441.0;
+
+                                double dist = (1.0 - blendFactor) * colorDist + blendFactor * positionDist;
+                                dist = dist * (1.0 + (double)weight / 255.0);
+
+                                if (dist < minDistance)
+                                {
+                                    minDistance = dist;
+                                    bestPixelIndex = srcFlatIdx;
+
+                                    // Early stopping: if distance is very good, accept it
+                                    if (dist < 10.0 && weight < 128)
+                                    {
+                                        foundMatch = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If no match found in nearby buckets, do a limited global search (Fallback logic)
+            if (bestPixelIndex == -1)
+            {
+                int globalChecks = 0;
+                int maxGlobalChecks = 500;
+
+                for (size_t bucketIdx = 0; bucketIdx < colorBuckets.size() && globalChecks < maxGlobalChecks; bucketIdx++)
+                {
+                    for (size_t i = 0; i < colorBuckets[bucketIdx].size() && globalChecks < maxGlobalChecks; i++)
+                    {
+                        int srcFlatIdx = colorBuckets[bucketIdx][i];
+
+                        if (!pixelUsed[srcFlatIdx])
+                        {
+                            globalChecks++;
+
+                            int srcRow = srcFlatIdx / width;
+                            int srcCol = srcFlatIdx % width;
+
+                            int sourceR = sourceImage(srcCol, srcRow, 0);
+                            int sourceG = sourceImage(srcCol, srcRow, 1);
+                            int sourceB = sourceImage(srcCol, srcRow, 2);
+
+                            double r_diff = targetR - sourceR;
+                            double g_diff = targetG - sourceG;
+                            double b_diff = targetB - sourceB;
+                            double colorDist = std::sqrt(r_diff * r_diff + g_diff * g_diff + b_diff * b_diff);
+
+                            double pos_diff_col = col - srcCol;
+                            double pos_diff_row = row - srcRow;
+                            double positionDist = std::sqrt(pos_diff_col * pos_diff_col + pos_diff_row * pos_diff_row);
+                            double max_pos_dist = std::sqrt(width * width + height * height);
+                            positionDist = positionDist / max_pos_dist * 441.0;
+
+                            double dist = (1.0 - blendFactor) * colorDist + blendFactor * positionDist;
+                            dist = dist * (1.0 + (double)weight / 255.0);
+
+                            if (dist < minDistance)
+                            {
+                                minDistance = dist;
+                                bestPixelIndex = srcFlatIdx;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (bestPixelIndex != -1)
+            {
+                pixelMapping[targetFlatIdx] = bestPixelIndex;
+                pixelUsed[bestPixelIndex] = true;
+            }
+            else
+            {
+                pixelMapping[targetFlatIdx] = targetFlatIdx; // Fallback
+            }
+
+            // Progress indicator
+            pixelsProcessed++;
+            if (pixelsProcessed % 5000 == 0)
+            {
+                std::cout << "Progress: " << (pixelsProcessed * 100 / pixelCount) << "% ("
+                          << pixelsProcessed << "/" << pixelCount << " pixels)\r" << std::flush;
+            }
+        }
+    }
+    std::cout << "\nPixel mapping completed!" << std::endl;
+}
+
+// Animated morph function - creates a GIF showing pixel movement
+void morphAnimated(Image &sourceImage, Image &targetImage, Image &weightsImage, const std::string &outputPath,
+                   int frameCount, double blendFactor)
+{
+    std::cout << "Starting animated morph generation..." << std::endl;
+
+    if (frameCount <= 1)
+    {
+        std::cerr << "Error: frameCount must be greater than 1 for an animation." << std::endl;
+        return;
+    }
+
+    // Step 1: Resize images to match target dimensions
     if (sourceImage.width != targetImage.width || sourceImage.height != targetImage.height)
     {
         sourceImage = resizeImageInMemory(sourceImage, targetImage.width, targetImage.height);
     }
 
-    // Step 2: Resize weights to match target dimensions
     if (weightsImage.width != targetImage.width || weightsImage.height != targetImage.height)
     {
         weightsImage = resizeImageInMemory(weightsImage, targetImage.width, targetImage.height);
     }
 
-    // Step 3: Convert weights to grayscale
     grayscale(weightsImage);
 
-    // Step 4: Collect all source pixels into a pool
-    std::vector<int> availablePixels; // Store flat indices
-    for (int row = 0; row < sourceImage.height; row++)
+    int width = targetImage.width;
+    int height = targetImage.height;
+
+    // Step 2: Calculate the final pixel map (Inverse Map: target_index -> source_index)
+    std::vector<int> finalPixelMapping;
+    morphOptimized(sourceImage, targetImage, weightsImage, blendFactor, finalPixelMapping);
+
+    // Number of frames to hold the initial and final results
+    const int HOLD_FRAMES = 15; // Increased hold time at both ends
+
+    // The actual morphing happens over 'frameCount' frames.
+    // Total frames = (Start Hold) + (Morphing Frames) + (End Hold)
+    int totalFrames = HOLD_FRAMES + frameCount + HOLD_FRAMES;
+
+    std::cout << "Generating " << totalFrames << " animation frames..." << std::endl;
+
+    // Step 3: Create GIF
+    GifWriter g;
+    // 💡 FIX for Quality: Increase delay to 5 centiseconds (50ms per frame, 20 FPS).
+    // This often improves perceived quality and reduces the need for the GIF library to skip frames.
+    int delay = 5;
+    GifBegin(&g, outputPath.c_str(), width, height, delay);
+
+    // Create a buffer to store the initial and final frames for re-use
+    std::vector<uint8_t> initialFrameBuffer(width * height * 4);
+    std::vector<uint8_t> finalFrameBuffer(width * height * 4);
+    bool initialFrameSaved = false;
+
+    // Generate frames
+    for (int frame = 0; frame < totalFrames; frame++)
     {
-        for (int col = 0; col < sourceImage.width; col++)
+        std::vector<uint8_t> currentFrameBuffer(width * height * 4);
+
+        // Determine the progress factor 't' (0.0 to 1.0) for the actual morph
+        float t;
+        if (frame < HOLD_FRAMES)
         {
-            availablePixels.push_back(row * sourceImage.width + col);
+            t = 0.0f; // Start Hold: Keep the image at t=0
         }
-    }
-
-    // Step 5: Shuffle pixel pool for randomness
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::default_random_engine rng(seed);
-    std::shuffle(availablePixels.begin(), availablePixels.end(), rng);
-
-    // Step 6: Track which source pixels have been used
-    std::vector<bool> pixelUsed(availablePixels.size(), false);
-
-    // Step 7: Create morphed image
-    Image morphedImage(targetImage.width, targetImage.height);
-
-    // Step 8: For each target pixel, find best matching available source pixel
-    for (int row = 0; row < targetImage.height; row++)
-    {
-        for (int col = 0; col < targetImage.width; col++)
+        else if (frame >= HOLD_FRAMES + frameCount)
         {
-            // Get target pixel RGB values
-            int targetR = targetImage(col, row, 0);
-            int targetG = targetImage(col, row, 1);
-            int targetB = targetImage(col, row, 2);
-            int weight = weightsImage(col, row, 0);
+            t = 1.0f; // End Hold: Keep the image at t=1
+        }
+        else
+        {
+            // Morphing in progress
+            int morphFrame = frame - HOLD_FRAMES;
+            t = (float)morphFrame / (frameCount - 1);
+        }
 
-            double minDistance = std::numeric_limits<double>::max();
-            int bestPixelIndex = -1;
+        // Interpolate blend factor (starts at 1.0/pure source, ends at final blendFactor)
+        double current_alpha = 1.0 * (1.0 - t) + blendFactor * t;
 
-            // Search through all available source pixels
-            for (size_t k = 0; k < availablePixels.size(); k++)
+        // --- Use stored frame buffers for hold segments ---
+        if (frame < HOLD_FRAMES)
+        {
+            // Write initial frame (Source Image)
+            if (!initialFrameSaved)
             {
-                if (!pixelUsed[k])
+                // Generate and save the true initial frame (t=0)
+                // This frame is pure Source Warped at t=0, blended with Target at 1.0 alpha
+
+                // When t=0: sampleCol = destCol, sampleRow = destRow.
+                // Warped Source Color = sourceImage(destCol, destRow).
+
+                for (int destRow = 0; destRow < height; destRow++)
                 {
-                    // Get source pixel coordinates from flat index
-                    int srcRow = availablePixels[k] / sourceImage.width;
-                    int srcCol = availablePixels[k] % sourceImage.width;
-
-                    // Get source pixel RGB values
-                    int sourceR = sourceImage(srcCol, srcRow, 0);
-                    int sourceG = sourceImage(srcCol, srcRow, 1);
-                    int sourceB = sourceImage(srcCol, srcRow, 2);
-
-                    // Calculate Euclidean color distance
-                    double r_diff = targetR - sourceR;
-                    double g_diff = targetG - sourceG;
-                    double b_diff = targetB - sourceB;
-                    double dist = std::sqrt(r_diff * r_diff + g_diff * g_diff + b_diff * b_diff);
-
-                    // Apply weight: higher weight = penalize mismatches more
-                    dist = dist * (1.0 + (double)weight / 255.0);
-
-                    if (dist < minDistance)
+                    for (int destCol = 0; destCol < width; destCol++)
                     {
-                        minDistance = dist;
-                        bestPixelIndex = k;
+                        int framePos = (destRow * width + destCol) * 4;
+
+                        // When t=0, current_alpha=1.0. Blended R = 1.0 * sourceR + 0.0 * targetR = sourceR
+                        // This ensures the frame is the original source image, which is the intention.
+                        unsigned char R = sourceImage(destCol, destRow, 0);
+                        unsigned char G = sourceImage(destCol, destRow, 1);
+                        unsigned char B = sourceImage(destCol, destRow, 2);
+
+                        initialFrameBuffer[framePos + 0] = R;
+                        initialFrameBuffer[framePos + 1] = G;
+                        initialFrameBuffer[framePos + 2] = B;
+                        initialFrameBuffer[framePos + 3] = 255;
+                    }
+                }
+                initialFrameSaved = true;
+            }
+            // Use the saved initial frame
+            GifWriteFrame(&g, initialFrameBuffer.data(), width, height, delay);
+        }
+        else if (frame >= HOLD_FRAMES + frameCount)
+        {
+            // Write final frame (Morph Result) - the buffer for this was saved in the loop below
+            GifWriteFrame(&g, finalFrameBuffer.data(), width, height, delay);
+        }
+        else
+        {
+            // --- GENERATE FRAME (Morphing in progress: HOLD_FRAMES <= frame < HOLD_FRAMES + frameCount) ---
+
+            // Iterate over the destination pixel (target image coordinates)
+            for (int destRow = 0; destRow < height; destRow++)
+            {
+                for (int destCol = 0; destCol < width; destCol++)
+                {
+                    int destIdx = destRow * width + destCol;
+                    int finalSourceIdx = finalPixelMapping[destIdx];
+
+                    int finalSrcRow = finalSourceIdx / width;
+                    int finalSrcCol = finalSourceIdx % width;
+
+                    // Interpolated sampling coordinates (Inverse Warp)
+                    double sampleCol = destCol * (1.0 - t) + finalSrcCol * t;
+                    double sampleRow = destRow * (1.0 - t) + finalSrcRow * t;
+
+                    int srcCol = static_cast<int>(std::round(sampleCol));
+                    int srcRow = static_cast<int>(std::round(sampleRow));
+
+                    // Clamp to bounds
+                    srcCol = std::clamp(srcCol, 0, width - 1);
+                    srcRow = std::clamp(srcRow, 0, height - 1);
+
+                    // Get Warped Source Color (sampled at interpolated position)
+                    int warpedR = sourceImage(srcCol, srcRow, 0);
+                    int warpedG = sourceImage(srcCol, srcRow, 1);
+                    int warpedB = sourceImage(srcCol, srcRow, 2);
+
+                    // Get Target Color (at the current pixel position)
+                    int targetR = targetImage(destCol, destRow, 0);
+                    int targetG = targetImage(destCol, destRow, 1);
+                    int targetB = targetImage(destCol, destRow, 2);
+
+                    // Color Blending
+                    unsigned char R = static_cast<unsigned char>(
+                        std::clamp(static_cast<int>(current_alpha * warpedR + (1.0 - current_alpha) * targetR), 0, 255));
+                    unsigned char G = static_cast<unsigned char>(
+                        std::clamp(static_cast<int>(current_alpha * warpedG + (1.0 - current_alpha) * targetG), 0, 255));
+                    unsigned char B = static_cast<unsigned char>(
+                        std::clamp(static_cast<int>(current_alpha * warpedB + (1.0 - current_alpha) * targetB), 0, 255));
+
+                    // Write RGBA data to the buffer
+                    int framePos = (destRow * width + destCol) * 4;
+
+                    currentFrameBuffer[framePos + 0] = R;
+                    currentFrameBuffer[framePos + 1] = G;
+                    currentFrameBuffer[framePos + 2] = B;
+                    currentFrameBuffer[framePos + 3] = 255;
+
+                    // If this is the true final frame (t=1), save its data for the hold frames
+                    if (frame == HOLD_FRAMES + frameCount - 1)
+                    {
+                        finalFrameBuffer[framePos + 0] = R;
+                        finalFrameBuffer[framePos + 1] = G;
+                        finalFrameBuffer[framePos + 2] = B;
+                        finalFrameBuffer[framePos + 3] = 255;
                     }
                 }
             }
 
-            // Assign best matching pixel
-            if (bestPixelIndex != -1)
-            {
-                int srcRow = availablePixels[bestPixelIndex] / sourceImage.width;
-                int srcCol = availablePixels[bestPixelIndex] % sourceImage.width;
+            // Write generated frame to GIF
+            GifWriteFrame(&g, currentFrameBuffer.data(), width, height, delay);
+        }
 
-                morphedImage(col, row, 0) = sourceImage(srcCol, srcRow, 0);
-                morphedImage(col, row, 1) = sourceImage(srcCol, srcRow, 1);
-                morphedImage(col, row, 2) = sourceImage(srcCol, srcRow, 2);
-
-                pixelUsed[bestPixelIndex] = true;
-            }
-            else
-            {
-                // Fallback: black pixel (shouldn't happen if source >= target pixels)
-                morphedImage(col, row, 0) = 0;
-                morphedImage(col, row, 1) = 0;
-                morphedImage(col, row, 2) = 0;
-            }
+        // Progress indicator
+        if ((frame + 1) % 10 == 0 || frame == totalFrames - 1)
+        {
+            std::cout << "Progress: " << (frame + 1) << "/" << totalFrames << " frames\r" << std::flush;
         }
     }
 
-    // Step 9: Replace source image with morphed result
-    sourceImage = morphedImage;
-    std::cout << "Morphing completed." << std::endl;
+    GifEnd(&g);
+    std::cout << "\nAnimated GIF creation complete!" << std::endl;
 }
