@@ -837,22 +837,18 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
 
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
 {
-    // Step 1: Resize source to match target dimensions
     if (sourceImage.width != targetImage.width || sourceImage.height != targetImage.height)
     {
         sourceImage = resizeImageInMemory(sourceImage, targetImage.width, targetImage.height);
     }
 
-    // Step 2: Resize weights to match target dimensions
     if (weightsImage.width != targetImage.width || weightsImage.height != targetImage.height)
     {
         weightsImage = resizeImageInMemory(weightsImage, targetImage.width, targetImage.height);
     }
 
-    // Step 3: Convert weights to grayscale
     grayscale(weightsImage);
 
-    // Step 4: Collect all source pixels into a pool
     std::vector<int> availablePixels; // Store flat indices
     for (int row = 0; row < sourceImage.height; row++)
     {
@@ -862,15 +858,12 @@ void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
         }
     }
 
-    // Step 5: Shuffle pixel pool for randomness
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::default_random_engine rng(seed);
     std::shuffle(availablePixels.begin(), availablePixels.end(), rng);
 
-    // Step 6: Track which source pixels have been used
     std::vector<bool> pixelUsed(availablePixels.size(), false);
 
-    // Step 7: Create morphed image
     Image morphedImage(targetImage.width, targetImage.height);
 
     // Step 8: For each target pixel, find best matching available source pixel
