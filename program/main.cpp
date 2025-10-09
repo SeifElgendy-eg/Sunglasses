@@ -26,6 +26,7 @@ Seif
 #include <chrono>
 #include <limits>
 
+
 void grayscale(Image &image);
 void bnw(Image &image);
 void invert(Image &image);
@@ -41,9 +42,9 @@ void blur(Image &image, int kernelSize);
 void resizeImage(Image &image, const std::string &imageName, int newWidth = -1, int newHeight = -1,
                  double scaleFactorX = -1, double scaleFactorY = -1);
 Image resizeImageInMemory(Image &image, int newWidth, int newHeight);
-void purpleFilter(Image &image, const string &imageName, const int intensity);
-void yellowFilter(Image &image, const string &imageName, const int intensity);
-voide redscale(Image &image);
+void purpleFilter(Image &image, const std::string &imageName, const int intensity);
+void yellowFilter(Image &image, const std::string &imageName, const int intensity);
+void redscale(Image &image);
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage);
 
 void printUsage(const char *programName)
@@ -830,8 +831,8 @@ Image resizeImageInMemory(Image &image, int newWidth, int newHeight)
         {
             for (int k = 0; k <= 2; k++)
             {
-                const int oldX = static_cast<int>(round(col * scaleFactorX));
-                const int oldY = static_cast<int>(round(row * scaleFactorY));
+                const int oldX = static_cast<int>(std::floor(col * scaleFactorX));
+                const int oldY = static_cast<int>(std::floor(row * scaleFactorY));
                 if (oldX >= 0 && oldX < image.width && oldY >= 0 && oldY < image.height)
                 {
                     resizedImage(col, row, k) = image(oldX, oldY, k);
@@ -887,7 +888,7 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
     image.saveImage(imageName + "_output_resized.jpg");
 }
 
-void purpleFilter(Image &image, const string &imageName, const int intensity) {
+void purpleFilter(Image &image, const std::string &imageName, const int intensity) {
     image.loadNewImage(imageName + ".jpg");
     for (int i = 0; i < image.width; i++) {
         for (int j = 0; j < image.height; j++) {
@@ -899,15 +900,15 @@ void purpleFilter(Image &image, const string &imageName, const int intensity) {
             int new_g = g - intensity;
             int new_b = b + intensity;
 
-            r = max(0, min(255, new_r));
-            g = max(0, min(255, new_g));
-            b = max(0, min(255, new_b));
+            r = std::max(0, std::min(255, new_r));
+            g = std::max(0, std::min(255, new_g));
+            b = std::max(0, std::min(255, new_b));
         }
     }
     image.saveImage(imageName + "_output_purple.jpg");
 }
 
-void yellowFilter(Image &image, const string &imageName, const int intensity) {
+void yellowFilter(Image &image, const std::string &imageName, const int intensity) {
     image.loadNewImage(imageName + ".jpg");
     for (int i = 0; i < image.width; i++) {
         for (int j = 0; j < image.height; j++) {
@@ -919,9 +920,9 @@ void yellowFilter(Image &image, const string &imageName, const int intensity) {
             int new_g = g + intensity;
             int new_b = b - intensity;
 
-            r = max(0, min(255, new_r));
-            g = max(0, min(255, new_g));
-            b = max(0, min(255, new_b));
+            r = std::max(0, std::min(255, new_r));
+            g = std::max(0, std::min(255, new_g));
+            b = std::max(0, std::min(255, new_b));
         }
     }
     image.saveImage(imageName + "_output_yellow.jpg");
