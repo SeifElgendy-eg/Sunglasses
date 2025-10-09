@@ -13,7 +13,7 @@ Seif    3,6,9,12
 */
 
 #include <Image_Class.h>
-#include "gif.h" // Include gif.h for GIF creation
+#include "gif.h"
 #include <iostream>
 #include <cmath>
 #include <algorithm>
@@ -22,17 +22,32 @@ Seif    3,6,9,12
 #include <random>
 #include <chrono>
 #include <limits>
-#include <cstdint> // Required for uint8_t
+#include <cstdint>
+#include <memory>
+#include <stdexcept>
 
-void grayscale(Image &image);
+// Configuration Constants
+namespace Config
+{
+    const int MAX_IMAGE_DIMENSION = 16384; // Maximum allowed dimension
+    const int MIN_IMAGE_DIMENSION = 1;     // Minimum allowed dimension
+    const int MORPH_BUCKET_SIZE = 16;      // Color quantization for morphing
+    const int MORPH_HOLD_FRAMES = 15;      // Hold frames at start/end of animation
+    const int MORPH_GIF_DELAY = 5;         // Delay between GIF frames (centiseconds)
+    const int MORPH_BASE_CHECKS = 200;     // Base number of pixel checks
+    const int MORPH_WEIGHT_CHECKS = 800;   // Additional checks based on weight
+    const int MORPH_FALLBACK_CHECKS = 500; // Global fallback search limit
+    const double MORPH_EARLY_STOP = 10.0;  // Early stopping threshold
+}
+
 void bnw(Image &image);
 void invert(Image &image);
 void merge(Image &image1, Image &image2, Image &outputImage, float alpha, char mode);
 void reflect(Image &image);
 void rotate(Image &image, int degrees);
 void dnl(Image &image, int percent);
-void crop(Image &image, int x, int y, int width, int height);
-void frame(Image &image, int thickness, int r, int g, int b, char style = 's');
+bool crop(Image &image, int x, int y, int width, int height);
+bool frame(Image &image, int thickness, int r, int g, int b, char style = 's');
 void edges(Image &image);
 void blur(Image &image, int kernelSize);
 void resizeImage(Image &image, const std::string &imageName, int newWidth = -1, int newHeight = -1,
@@ -41,66 +56,22 @@ Image resizeImageInMemory(Image &image, int newWidth, int newHeight);
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor = 0.5);
 void morphAnimated(Image &sourceImage, Image &targetImage, Image &weightsImage, const std::string &outputPath,
                    int frameCount = 30, double blendFactor = 0.5);
-// *** SYNTAX FIX: Complete prototype for morphOptimized added here ***
 void morphOptimized(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor,
                     std::vector<int> &pixelMapping);
 
-// *** LOGIC FIX: The morph function now implements Warping + Blending ***
-void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor)
+bool validateDimensions(int width, int height)
 {
-    // Step 1: Resize images to match target dimensions
-    if (sourceImage.width != targetImage.width || sourceImage.height != targetImage.height)
+    if (width < Config::MIN_IMAGE_DIMENSION || height < Config::MIN_IMAGE_DIMENSION)
     {
-        sourceImage = resizeImageInMemory(sourceImage, targetImage.width, targetImage.height);
+        std::cerr << "Error: Image dimensions too small (min: " << Config::MIN_IMAGE_DIMENSION << ")" << std::endl;
+        return false;
     }
-
-    if (weightsImage.width != targetImage.width || weightsImage.height != targetImage.height)
+    if (width > Config::MAX_IMAGE_DIMENSION || height > Config::MAX_IMAGE_DIMENSION)
     {
-        weightsImage = resizeImageInMemory(weightsImage, targetImage.width, targetImage.height);
+        std::cerr << "Error: Image dimensions too large (max: " << Config::MAX_IMAGE_DIMENSION << ")" << std::endl;
+        return false;
     }
-
-    grayscale(weightsImage);
-
-    // Step 2: Use optimized morphing algorithm to create the pixel warp map
-    std::vector<int> pixelMapping;
-    morphOptimized(sourceImage, targetImage, weightsImage, blendFactor, pixelMapping);
-
-    // Step 3: Apply pixel mapping (WARP) and then BLEND the warped source with the target image
-    Image morphedImage(targetImage.width, targetImage.height);
-    int width = targetImage.width;
-    double alpha = blendFactor; // Blend factor: 1.0 = source, 0.0 = target
-
-    for (int row = 0; row < targetImage.height; row++)
-    {
-        for (int col = 0; col < targetImage.width; col++)
-        {
-            int targetIdx = row * width + col;
-            int sourceIdx = pixelMapping[targetIdx];
-            int srcRow = sourceIdx / width;
-            int srcCol = sourceIdx % width;
-
-            // Get Warped Source Color
-            int warpedR = sourceImage(srcCol, srcRow, 0);
-            int warpedG = sourceImage(srcCol, srcRow, 1);
-            int warpedB = sourceImage(srcCol, srcRow, 2);
-
-            // Get Target Color
-            int targetR = targetImage(col, row, 0);
-            int targetG = targetImage(col, row, 1);
-            int targetB = targetImage(col, row, 2);
-
-            // Color Blending: alpha * Warped_Source + (1.0 - alpha) * Target
-            morphedImage(col, row, 0) = static_cast<unsigned char>(
-                std::clamp(static_cast<int>(alpha * warpedR + (1.0 - alpha) * targetR), 0, 255));
-            morphedImage(col, row, 1) = static_cast<unsigned char>(
-                std::clamp(static_cast<int>(alpha * warpedG + (1.0 - alpha) * targetG), 0, 255));
-            morphedImage(col, row, 2) = static_cast<unsigned char>(
-                std::clamp(static_cast<int>(alpha * warpedB + (1.0 - alpha) * targetB), 0, 255));
-        }
-    }
-
-    sourceImage = morphedImage;
-    std::cout << "Morphing completed with blend factor: " << blendFactor << std::endl;
+    return true;
 }
 
 void printUsage(const char *programName)
@@ -138,6 +109,7 @@ void printUsage(const char *programName)
 
 int main(int argc, char **argv)
 {
+
     if (argc < 2)
     {
         printUsage(argv[0]);
@@ -151,16 +123,21 @@ int main(int argc, char **argv)
         return -2;
     }
 
+    if (!validateDimensions(img.width, img.height))
+    {
+        return -2;
+    }
+
     std::string outputFile = "output.png";
     bool filterApplied = false;
-    double morphBlendFactor = 0.5; // Default: balanced between source and target
-    bool animateMode = false;      // Whether to create animated GIF
-    int animateFrames = 30;        // Default frame count for animation
+    double morphBlendFactor = 0.5;
+    bool animateMode = false;
+    int animateFrames = 30;
 
-    // Store morph parameters to execute after all flags are parsed
+    // Use smart pointers for automatic memory management
+    std::unique_ptr<Image> pendingTargetImg;
+    std::unique_ptr<Image> pendingWeightsImg;
     bool morphPending = false;
-    Image *pendingTargetImg = nullptr;
-    Image *pendingWeightsImg = nullptr;
 
     // Parse command-line arguments
     for (int i = 2; i < argc; i++)
@@ -386,34 +363,30 @@ int main(int argc, char **argv)
             if (i + 1 < argc)
             {
                 std::string targetPath = argv[++i];
-                pendingTargetImg = new Image(targetPath.c_str());
+                pendingTargetImg = std::make_unique<Image>(targetPath.c_str());
 
                 if (pendingTargetImg->imageData == nullptr)
                 {
                     std::cerr << "Error: Could not load target image '" << targetPath << "'" << std::endl;
-                    delete pendingTargetImg;
                     return -2;
                 }
 
                 // Check if weights image is provided (optional)
                 if (i + 1 < argc && argv[i + 1][0] != '-')
                 {
-                    // Weights image provided
                     std::string weightsPath = argv[++i];
-                    pendingWeightsImg = new Image(weightsPath.c_str());
+                    pendingWeightsImg = std::make_unique<Image>(weightsPath.c_str());
 
                     if (pendingWeightsImg->imageData == nullptr)
                     {
                         std::cerr << "Error: Could not load weights image '" << weightsPath << "'" << std::endl;
-                        delete pendingTargetImg;
-                        delete pendingWeightsImg;
                         return -2;
                     }
                 }
                 else
                 {
-                    // No weights image provided - create uniform white weights
-                    pendingWeightsImg = new Image(img.width, img.height);
+                    // Create uniform white weights
+                    pendingWeightsImg = std::make_unique<Image>(img.width, img.height);
                     for (int row = 0; row < pendingWeightsImg->height; row++)
                     {
                         for (int col = 0; col < pendingWeightsImg->width; col++)
@@ -423,7 +396,7 @@ int main(int argc, char **argv)
                             (*pendingWeightsImg)(col, row, 2) = 255;
                         }
                     }
-                    std::cout << "No weights image provided - using uniform weights (all areas equally important)\n";
+                    std::cout << "No weights image provided - using uniform weights\n";
                 }
 
                 morphPending = true;
@@ -440,11 +413,7 @@ int main(int argc, char **argv)
             if (i + 1 < argc)
             {
                 morphBlendFactor = std::atof(argv[++i]);
-                if (morphBlendFactor < 0.0 || morphBlendFactor > 1.0)
-                {
-                    std::cerr << "Warning: Blend factor should be between 0.0 and 1.0. Clamping value.\n";
-                    morphBlendFactor = std::clamp(morphBlendFactor, 0.0, 1.0);
-                }
+                morphBlendFactor = std::clamp(morphBlendFactor, 0.0, 1.0);
                 std::cout << "Morph blend factor set to: " << morphBlendFactor << "\n";
             }
             else
@@ -456,21 +425,12 @@ int main(int argc, char **argv)
 
         case 'A': // animate flag
             animateMode = true;
-            // Check if frame count is provided (optional)
             if (i + 1 < argc && argv[i + 1][0] != '-')
             {
                 animateFrames = std::atoi(argv[++i]);
-                if (animateFrames < 2)
-                {
-                    std::cerr << "Warning: Frame count should be at least 2. Setting to 2.\n";
-                    animateFrames = 2;
-                }
-                std::cout << "Animation mode enabled with " << animateFrames << " frames\n";
+                animateFrames = std::max(2, animateFrames);
             }
-            else
-            {
-                std::cout << "Animation mode enabled with default " << animateFrames << " frames\n";
-            }
+            std::cout << "Animation mode enabled with " << animateFrames << " frames\n";
             break;
 
         case 'h': // help
@@ -492,25 +452,23 @@ int main(int argc, char **argv)
     // Execute morph if pending (after all flags are parsed)
     if (morphPending)
     {
-        if (animateMode)
+        try
         {
-            // Create animated GIF
-            morphAnimated(img, *pendingTargetImg, *pendingWeightsImg, outputFile, animateFrames, morphBlendFactor);
-            std::cout << "Animated GIF saved to: " << outputFile << std::endl;
-
-            // Clean up
-            delete pendingTargetImg;
-            delete pendingWeightsImg;
-            return 0; // Exit after creating GIF
+            if (animateMode)
+            {
+                morphAnimated(img, *pendingTargetImg, *pendingWeightsImg, outputFile, animateFrames, morphBlendFactor);
+                std::cout << "Animated GIF saved to: " << outputFile << std::endl;
+                return 0;
+            }
+            else
+            {
+                morph(img, *pendingTargetImg, *pendingWeightsImg, morphBlendFactor);
+            }
         }
-        else
+        catch (const std::exception &e)
         {
-            // Create still image
-            morph(img, *pendingTargetImg, *pendingWeightsImg, morphBlendFactor);
-
-            // Clean up
-            delete pendingTargetImg;
-            delete pendingWeightsImg;
+            std::cerr << "Error during morphing: " << e.what() << std::endl;
+            return -1;
         }
     }
 
@@ -522,28 +480,25 @@ int main(int argc, char **argv)
 
 void grayscale(Image &image)
 {
-    // Iterate through each pixel in the image
     for (int row = 0; row < image.height; row++)
     {
         for (int col = 0; col < image.width; col++)
         {
-            // Calculate average of RGB values and round to nearest integer
-            int num = round((image(col, row, 0) + image(col, row, 1) + image(col, row, 2)) / 3.0);
-
-            // Set all three color channels to the same grayscale value
-            image(col, row, 0) = image(col, row, 1) = image(col, row, 2) = num;
+            // Use integer arithmetic for efficiency
+            int sum = image(col, row, 0) + image(col, row, 1) + image(col, row, 2);
+            int gray = (sum + 1) / 3; // Proper rounding
+            image(col, row, 0) = image(col, row, 1) = image(col, row, 2) = gray;
         }
     }
 }
 
 void bnw(Image &image)
 {
-    // Iterate through each pixel in the image
     for (int row = 0; row < image.height; row++)
     {
         for (int col = 0; col < image.width; col++)
         {
-            // Calculate average of RGB values (integer division for speed)
+            // Calculate average of RGB values
             int num = (image(col, row, 0) + image(col, row, 1) + image(col, row, 2)) / 3;
 
             // Apply threshold: >= 128 becomes white, < 128 becomes black
@@ -702,7 +657,7 @@ void dnl(Image &image, int percent)
     }
 }
 
-void crop(Image &image, int x, int y, int width, int height)
+bool crop(Image &image, int x, int y, int width, int height)
 {
     // Validate input parameters
     if (x < 0 || y < 0 || width <= 0 || height <= 0)
@@ -719,8 +674,8 @@ void crop(Image &image, int x, int y, int width, int height)
 
     if (startX >= image.width || startY >= image.height || cropWidth <= 0 || cropHeight <= 0)
     {
-        std::cerr << "Error: Crop area is outside or results in zero size. No cropping performed." << std::endl;
-        return;
+        std::cerr << "Error: Crop area is outside image bounds\n";
+        return false;
     }
 
     // Create cropped image
@@ -731,15 +686,14 @@ void crop(Image &image, int x, int y, int width, int height)
     {
         for (int col = 0; col < cropWidth; col++)
         {
-            // Copy RGB channels
-            cropped(col, row, 0) = image(startX + col, startY + row, 0); // Red
-            cropped(col, row, 1) = image(startX + col, startY + row, 1); // Green
-            cropped(col, row, 2) = image(startX + col, startY + row, 2); // Blue
+            cropped(col, row, 0) = image(startX + col, startY + row, 0);
+            cropped(col, row, 1) = image(startX + col, startY + row, 1);
+            cropped(col, row, 2) = image(startX + col, startY + row, 2);
         }
     }
 
-    // *** LOGIC FIX: Replace original image with the cropped one (Missing in user's latest provided code) ***
     image = cropped;
+    return true;
 }
 
 void edges(Image &image)
@@ -810,64 +764,51 @@ void edges(Image &image)
     }
 }
 
-void blur(Image &image, int kernelSize)
+bool crop(Image &image, int x, int y, int width, int height)
 {
-    // Ensure minimum kernel size
-    if (kernelSize < 1)
-        kernelSize = 1;
-
-    // Ensure odd kernel size for symmetry around center pixel
-    if (kernelSize % 2 == 0)
-        kernelSize++;
-
-    int radius = kernelSize / 2; // Distance from center to edge of kernel
-
-    // Create a copy of the original image to read from during processing
-    Image copy = image;
-
-    // Process each pixel in the image
-    for (int row = 0; row < image.height; row++)
+    if (x < 0 || y < 0 || width <= 0 || height <= 0)
     {
-        for (int col = 0; col < image.width; col++)
+        std::cerr << "Error: Invalid crop parameters (x=" << x << ", y=" << y
+                  << ", w=" << width << ", h=" << height << ")\n";
+        return false;
+    }
+
+    int startX = std::max(0, x);
+    int startY = std::max(0, y);
+    int cropWidth = std::min(width, image.width - startX);
+    int cropHeight = std::min(height, image.height - startY);
+
+    if (startX >= image.width || startY >= image.height || cropWidth <= 0 || cropHeight <= 0)
+    {
+        std::cerr << "Error: Crop area is outside image bounds\n";
+        return false;
+    }
+
+    Image cropped(cropWidth, cropHeight);
+
+    for (int row = 0; row < cropHeight; row++)
+    {
+        for (int col = 0; col < cropWidth; col++)
         {
-            int red = 0, green = 0, blue = 0, count = 0;
-
-            // Iterate through kernel area around current pixel
-            for (int dr = -radius; dr <= radius; dr++)
-            {
-                for (int dc = -radius; dc <= radius; dc++)
-                {
-                    int nr = row + dr; // Neighbor row
-                    int nc = col + dc; // Neighbor column
-
-                    // Check if neighbor coordinates are within image bounds
-                    if (nr >= 0 && nr < image.height && nc >= 0 && nc < image.width)
-                    {
-                        // Accumulate color values from neighboring pixels
-                        red += copy(nc, nr, 0);
-                        green += copy(nc, nr, 1);
-                        blue += copy(nc, nr, 2);
-                        count++; // Count valid neighbors for averaging
-                    }
-                }
-            }
-
-            // Set pixel to average of all valid neighbors
-            image(col, row, 0) = round((float)red / count);   // Red
-            image(col, row, 1) = round((float)green / count); // Green
-            image(col, row, 2) = round((float)blue / count);  // Blue
+            cropped(col, row, 0) = image(startX + col, startY + row, 0);
+            cropped(col, row, 1) = image(startX + col, startY + row, 1);
+            cropped(col, row, 2) = image(startX + col, startY + row, 2);
         }
     }
+
+    image = cropped;
+    return true;
 }
 
 // frame function with RGB values
-void frame(Image &image, int thickness, int r, int g, int b, char style)
+
+bool frame(Image &image, int thickness, int r, int g, int b, char style)
 {
     // Validate frame thickness
     if (thickness <= 0)
     {
-        std::cerr << "Error: Frame thickness must be positive." << std::endl;
-        return;
+        std::cerr << "Error: Frame thickness must be positive\n";
+        return false;
     }
 
     // Ensure thickness doesn't exceed half of either dimension
@@ -883,17 +824,16 @@ void frame(Image &image, int thickness, int r, int g, int b, char style)
     g = std::clamp(g, 0, 255);
     b = std::clamp(b, 0, 255);
 
-    // Process each pixel in the image
     for (int row = 0; row < image.height; row++)
     {
         for (int col = 0; col < image.width; col++)
         {
             bool inFrame = false;
 
-            if (style == 's') // Simple/solid frame
+            if (style == 's')
             {
-                // Check if pixel is within thickness distance from any edge
-                inFrame = (row < thickness || row >= image.height - thickness || col < thickness || col >= image.width - thickness);
+                inFrame = (row < thickness || row >= image.height - thickness ||
+                           col < thickness || col >= image.width - thickness);
             }
 
             if (inFrame)
@@ -904,6 +844,7 @@ void frame(Image &image, int thickness, int r, int g, int b, char style)
             }
         }
     }
+    return true;
 }
 
 // Helper function to resize an image in memory (reusable for any filter)
@@ -965,7 +906,63 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
     image = resizeImageInMemory(image, newWidth, newHeight);
 }
 
-// Optimized morph function with multiple speed improvements
+void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor)
+{
+    // Step 1: Resize images to match target dimensions
+    if (sourceImage.width != targetImage.width || sourceImage.height != targetImage.height)
+    {
+        sourceImage = resizeImageInMemory(sourceImage, targetImage.width, targetImage.height);
+    }
+
+    if (weightsImage.width != targetImage.width || weightsImage.height != targetImage.height)
+    {
+        weightsImage = resizeImageInMemory(weightsImage, targetImage.width, targetImage.height);
+    }
+
+    grayscale(weightsImage);
+
+    // Step 2: Use optimized morphing algorithm to create the pixel warp map
+    std::vector<int> pixelMapping;
+    morphOptimized(sourceImage, targetImage, weightsImage, blendFactor, pixelMapping);
+
+    // Step 3: Apply pixel mapping (WARP) and then BLEND the warped source with the target image
+    Image morphedImage(targetImage.width, targetImage.height);
+    int width = targetImage.width;
+    double alpha = blendFactor; // Blend factor: 1.0 = source, 0.0 = target
+
+    for (int row = 0; row < targetImage.height; row++)
+    {
+        for (int col = 0; col < targetImage.width; col++)
+        {
+            int targetIdx = row * width + col;
+            int sourceIdx = pixelMapping[targetIdx];
+            int srcRow = sourceIdx / width;
+            int srcCol = sourceIdx % width;
+
+            // Get Warped Source Color
+            int warpedR = sourceImage(srcCol, srcRow, 0);
+            int warpedG = sourceImage(srcCol, srcRow, 1);
+            int warpedB = sourceImage(srcCol, srcRow, 2);
+
+            // Get Target Color
+            int targetR = targetImage(col, row, 0);
+            int targetG = targetImage(col, row, 1);
+            int targetB = targetImage(col, row, 2);
+
+            // Color Blending: alpha * Warped_Source + (1.0 - alpha) * Target
+            morphedImage(col, row, 0) = static_cast<unsigned char>(
+                std::clamp(static_cast<int>(alpha * warpedR + (1.0 - alpha) * targetR), 0, 255));
+            morphedImage(col, row, 1) = static_cast<unsigned char>(
+                std::clamp(static_cast<int>(alpha * warpedG + (1.0 - alpha) * targetG), 0, 255));
+            morphedImage(col, row, 2) = static_cast<unsigned char>(
+                std::clamp(static_cast<int>(alpha * warpedB + (1.0 - alpha) * targetB), 0, 255));
+        }
+    }
+
+    sourceImage = morphedImage;
+    std::cout << "Morphing completed with blend factor: " << blendFactor << std::endl;
+}
+
 void morphOptimized(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor,
                     std::vector<int> &pixelMapping)
 {
