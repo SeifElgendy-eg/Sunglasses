@@ -43,8 +43,8 @@ void blur(Image &image, int kernelSize);
 void resizeImage(Image &image, const std::string &imageName, int newWidth = -1, int newHeight = -1,
                  double scaleFactorX = -1, double scaleFactorY = -1);
 Image resizeImageInMemory(Image &image, int newWidth, int newHeight);
-void purpleFilter(Image &image, const std::string &imageName, const int intensity);
-void yellowFilter(Image &image, const std::string &imageName, const int intensity);
+void purpleFilter(Image &image, const int intensity);
+void yellowFilter(Image &image, const int intensity);
 void redscale(Image &image);
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage);
 
@@ -66,6 +66,8 @@ void printUsage(const char *programName)
     std::cout << "  --merge <image2> <alpha> <mode>  Merge with another image\n";
     std::cout << "                           alpha: 0.0-1.0, mode: f/s/m\n";
     std::cout << "  --resize [w h]           Resize image by width and height\n";
+    std::cout << "  --yellow filter          Make the image more sunnier\n";
+    std::cout << "  --purple filter          Make the image purple\n";
     std::cout << "  --redscale               Maps the colors from a range of (black to white) to (white to red)\n";
     std::cout << "  --morph <target> [weights]  Morph source to target (optional: weights)\n";
     std::cout << "  -o <output_file>         Specify output filename (default: output.png)\n\n";
@@ -134,13 +136,25 @@ int main(int argc, char **argv)
             flag = 'M';
         else if (arg == "--help" || arg == "-h")
             flag = 'h';
+        else if (arg == "--purple filter")
+            flag = 'p';
+        else if (arg == "--yellow filter")
+            flag = 'y';
         else if (arg == "--redscale")
             flag = 'q';
 
         switch (flag)
         {
-        case 'q': // grayscale
+        case 'q': // redscale
             redscale(img);
+            filterApplied = true;
+            break;
+        case 'p': // purplefilter
+            purpleFilter(img, 40);
+            filterApplied = true;
+            break;
+        case 'y': // purplefilter
+            yellowFilter(img, 20);
             filterApplied = true;
             break;
         case 'g': // grayscale
@@ -889,8 +903,7 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
     image.saveImage(imageName + "_output_resized.jpg");
 }
 
-void purpleFilter(Image &image, const std::string &imageName, const int intensity) {
-    image.loadNewImage(imageName + ".jpg");
+void purpleFilter(Image &image, const int intensity) {
     for (int i = 0; i < image.width; i++) {
         for (int j = 0; j < image.height; j++) {
             unsigned char &r = image(i, j, 0);
@@ -906,11 +919,9 @@ void purpleFilter(Image &image, const std::string &imageName, const int intensit
             b = std::max(0, std::min(255, new_b));
         }
     }
-    image.saveImage(imageName + "_output_purple.jpg");
 }
 
-void yellowFilter(Image &image, const std::string &imageName, const int intensity) {
-    image.loadNewImage(imageName + ".jpg");
+void yellowFilter(Image &image, const int intensity) {
     for (int i = 0; i < image.width; i++) {
         for (int j = 0; j < image.height; j++) {
             unsigned char &r = image(i, j, 0);
@@ -926,7 +937,6 @@ void yellowFilter(Image &image, const std::string &imageName, const int intensit
             b = std::max(0, std::min(255, new_b));
         }
     }
-    image.saveImage(imageName + "_output_yellow.jpg");
 }
 
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
