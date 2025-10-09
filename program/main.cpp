@@ -7,9 +7,13 @@ Mohamed Talat Sayed      20240734
 Seifeldeen Hatem Moahmed 20242424
 
 Filters:
-Marwan  2,5,8,11
-Mohamed 1,4,7,10
+Marwan  2,5,8,11,13,16
+Mohamed 1,4,7,10,17
 Seif    3,6,9,12
+
+Menu:
+Seif
+
 */
 
 #include <Image_Class.h>
