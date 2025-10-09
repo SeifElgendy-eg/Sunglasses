@@ -15,7 +15,8 @@ Menu:
 Seif
 
 */
-
+//#include "Image_Class.h" 
+// change to this if compilation fails
 #include <Image_Class.h>
 #include <iostream>
 #include <cmath>
