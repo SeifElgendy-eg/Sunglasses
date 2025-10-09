@@ -49,7 +49,7 @@ void printUsage(const char *programName)
     std::cout << "  --grayscale              Convert image to grayscale\n";
     std::cout << "  --bnw                    Convert image to black and white\n";
     std::cout << "  --invert                 Invert image colors\n";
-    std::cout << "  --reflect [v/h]          Reflect image horizontally\n";
+    std::cout << "  --reflect [v/h]          Reflect image horizontally [h] or vertically [v]\n";
     std::cout << "  --rotate [degrees]       Rotate image (default: 90)\n";
     std::cout << "  --lighten [percent]      Lighten image (default: 20%)\n";
     std::cout << "  --darken [percent]       Darken image (default: 20%)\n";
