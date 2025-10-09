@@ -36,6 +36,8 @@ void blur(Image &image, int kernelSize);
 void resizeImage(Image &image, const std::string &imageName, int newWidth = -1, int newHeight = -1,
                  double scaleFactorX = -1, double scaleFactorY = -1);
 Image resizeImageInMemory(Image &image, int newWidth, int newHeight);
+void purpleFilter(Image &image, const string &imageName, const int intensity);
+void yellowFilter(Image &image, const string &imageName, const int intensity);
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage);
 
 void printUsage(const char *programName)
@@ -833,6 +835,46 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
 
     image = resizeImageInMemory(image, newWidth, newHeight);
     image.saveImage(imageName + "_output_resized.jpg");
+}
+
+void purpleFilter(Image &image, const string &imageName, const int intensity) {
+    image.loadNewImage(imageName + ".jpg");
+    for (int i = 0; i < image.width; i++) {
+        for (int j = 0; j < image.height; j++) {
+            unsigned char &r = image(i, j, 0);
+            unsigned char &g = image(i, j, 1);
+            unsigned char &b = image(i, j, 2);
+
+            int new_r = r + intensity;
+            int new_g = g - intensity;
+            int new_b = b + intensity;
+
+            r = max(0, min(255, new_r));
+            g = max(0, min(255, new_g));
+            b = max(0, min(255, new_b));
+        }
+    }
+    image.saveImage(imageName + "_output_purple.jpg");
+}
+
+void yellowFilter(Image &image, const string &imageName, const int intensity) {
+    image.loadNewImage(imageName + ".jpg");
+    for (int i = 0; i < image.width; i++) {
+        for (int j = 0; j < image.height; j++) {
+            unsigned char &r = image(i, j, 0);
+            unsigned char &g = image(i, j, 1);
+            unsigned char &b = image(i, j, 2);
+
+            int new_r = r + intensity;
+            int new_g = g + intensity;
+            int new_b = b - intensity;
+
+            r = max(0, min(255, new_r));
+            g = max(0, min(255, new_g));
+            b = max(0, min(255, new_b));
+        }
+    }
+    image.saveImage(imageName + "_output_yellow.jpg");
 }
 
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
