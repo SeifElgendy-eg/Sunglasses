@@ -11,6 +11,8 @@ Marwan  2,5,8,11,13,16
 Mohamed 1,4,7,10,17
 Seif    3,6,9,12
 
+Video & Shared Doc link: https://drive.google.com/drive/folders/1mMW3ldwtyYbjgCZvTc0kgBcvJOAODGeX?usp=sharing
+
 Menu:
 Seif
 
