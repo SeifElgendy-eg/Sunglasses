@@ -180,10 +180,20 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    Image img(argv[1]);
-    if (img.imageData == nullptr)
+    // Load main image with exception handling
+    Image img;
+    try
     {
-        std::cerr << "Error: Could not load image '" << argv[1] << "'" << std::endl;
+        img = Image(argv[1]);
+        if (img.imageData == nullptr)
+        {
+            std::cerr << "Error: Could not load image '" << argv[1] << "'" << std::endl;
+            return -2;
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error: Could not load image '" << argv[1] << "': " << e.what() << std::endl;
         return -2;
     }
 
@@ -383,10 +393,19 @@ int main(int argc, char **argv)
                     float alpha = std::atof(argv[++i]);
                     char mode = argv[++i][0];
 
-                    Image img2(img2Path.c_str());
-                    if (img2.imageData == nullptr)
+                    Image img2;
+                    try
                     {
-                        std::cerr << "Error: Could not load second image '" << img2Path << "'" << std::endl;
+                        img2 = Image(img2Path.c_str());
+                        if (img2.imageData == nullptr)
+                        {
+                            std::cerr << "Error: Could not load second image '" << img2Path << "'" << std::endl;
+                            return -2;
+                        }
+                    }
+                    catch (const std::exception &e)
+                    {
+                        std::cerr << "Error: Could not load second image '" << img2Path << "': " << e.what() << std::endl;
                         return -2;
                     }
 
@@ -439,11 +458,28 @@ int main(int argc, char **argv)
                 if (i + 1 < argc)
                 {
                     std::string targetPath = argv[++i];
-                    pendingTargetImg = std::make_unique<Image>(targetPath.c_str());
 
-                    if (pendingTargetImg->imageData == nullptr)
+                    std::cout << "Attempting to load target image: " << targetPath << std::endl;
+
+                    try
+                    {
+                        pendingTargetImg = std::make_unique<Image>(targetPath.c_str());
+
+                        if (pendingTargetImg->imageData == nullptr)
+                        {
+                            std::cerr << "Error: Could not load target image '" << targetPath << "'" << std::endl;
+                            std::cerr << "       Image loaded but imageData is null" << std::endl;
+                            return -2;
+                        }
+
+                        std::cout << "Target image loaded successfully: "
+                                  << pendingTargetImg->width << "x" << pendingTargetImg->height << std::endl;
+                    }
+                    catch (const std::exception &e)
                     {
                         std::cerr << "Error: Could not load target image '" << targetPath << "'" << std::endl;
+                        std::cerr << "       Exception: " << e.what() << std::endl;
+                        std::cerr << "       Check if file is a valid image format (PNG, JPG, BMP)" << std::endl;
                         return -2;
                     }
 
@@ -451,17 +487,35 @@ int main(int argc, char **argv)
                     if (i + 1 < argc && argv[i + 1][0] != '-')
                     {
                         std::string weightsPath = argv[++i];
-                        pendingWeightsImg = std::make_unique<Image>(weightsPath.c_str());
 
-                        if (pendingWeightsImg->imageData == nullptr)
+                        std::cout << "Attempting to load weights image: " << weightsPath << std::endl;
+
+                        try
+                        {
+                            pendingWeightsImg = std::make_unique<Image>(weightsPath.c_str());
+
+                            if (pendingWeightsImg->imageData == nullptr)
+                            {
+                                std::cerr << "Error: Could not load weights image '" << weightsPath << "'" << std::endl;
+                                std::cerr << "       Image loaded but imageData is null" << std::endl;
+                                return -2;
+                            }
+
+                            std::cout << "Weights image loaded successfully: "
+                                      << pendingWeightsImg->width << "x" << pendingWeightsImg->height << std::endl;
+                        }
+                        catch (const std::exception &e)
                         {
                             std::cerr << "Error: Could not load weights image '" << weightsPath << "'" << std::endl;
+                            std::cerr << "       Exception: " << e.what() << std::endl;
+                            std::cerr << "       Check if file is a valid image format (PNG, JPG, BMP)" << std::endl;
                             return -2;
                         }
                     }
                     else
                     {
                         // Create uniform white weights
+                        std::cout << "Creating uniform weights image (" << img.width << "x" << img.height << ")" << std::endl;
                         pendingWeightsImg = std::make_unique<Image>(img.width, img.height);
                         for (int row = 0; row < pendingWeightsImg->height; row++)
                         {
