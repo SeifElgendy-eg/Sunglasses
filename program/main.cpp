@@ -1,5 +1,5 @@
 /*
-Section: s12
+Section: S4
 
 Team Details:
 Marwan Mohamed Hassan    20240735
@@ -7,11 +7,18 @@ Mohamed Talat Sayed      20240734
 Seifeldeen Hatem Moahmed 20242424
 
 Filters:
-Marwan  2,5,8,11
-Mohamed 1,4,7,10
+Marwan  2,5,8,11,13,16
+Mohamed 1,4,7,10,17
 Seif    3,6,9,12
-*/
 
+Video & Shared Doc link: https://drive.google.com/drive/folders/1mMW3ldwtyYbjgCZvTc0kgBcvJOAODGeX?usp=sharing
+
+Menu:
+Seif
+
+*/
+//#include "Image_Class.h" 
+// change to this if compilation fails
 #include <Image_Class.h>
 #include <iostream>
 #include <cmath>
@@ -22,11 +29,13 @@ Seif    3,6,9,12
 #include <chrono>
 #include <limits>
 
+
 void grayscale(Image &image);
 void bnw(Image &image);
 void invert(Image &image);
 void merge(Image &image1, Image &image2, Image &outputImage, float alpha, char mode);
-void reflect(Image &image);
+void reflectV(Image &image);
+void reflectH(Image &image);
 void rotate(Image &image, int degrees);
 void dnl(Image &image, int percent);
 void crop(Image &image, int x, int y, int width, int height);
@@ -36,6 +45,9 @@ void blur(Image &image, int kernelSize);
 void resizeImage(Image &image, const std::string &imageName, int newWidth = -1, int newHeight = -1,
                  double scaleFactorX = -1, double scaleFactorY = -1);
 Image resizeImageInMemory(Image &image, int newWidth, int newHeight);
+void purpleFilter(Image &image, const int intensity);
+void yellowFilter(Image &image, const int intensity);
+void redscale(Image &image);
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage);
 
 void printUsage(const char *programName)
@@ -45,7 +57,7 @@ void printUsage(const char *programName)
     std::cout << "  --grayscale              Convert image to grayscale\n";
     std::cout << "  --bnw                    Convert image to black and white\n";
     std::cout << "  --invert                 Invert image colors\n";
-    std::cout << "  --reflect                Reflect image horizontally\n";
+    std::cout << "  --reflect [v/h]          Reflect image horizontally [h] or vertically [v]\n";
     std::cout << "  --rotate [degrees]       Rotate image (default: 90)\n";
     std::cout << "  --lighten [percent]      Lighten image (default: 20%)\n";
     std::cout << "  --darken [percent]       Darken image (default: 20%)\n";
@@ -56,6 +68,9 @@ void printUsage(const char *programName)
     std::cout << "  --merge <image2> <alpha> <mode>  Merge with another image\n";
     std::cout << "                           alpha: 0.0-1.0, mode: f/s/m\n";
     std::cout << "  --resize [w h]           Resize image by width and height\n";
+    std::cout << "  --yellow filter          Make the image more sunnier\n";
+    std::cout << "  --purple filter          Make the image purple\n";
+    std::cout << "  --redscale               Maps the colors from a range of (black to white) to (white to red)\n";
     std::cout << "  --morph <target> [weights]  Morph source to target (optional: weights)\n";
     std::cout << "  -o <output_file>         Specify output filename (default: output.png)\n\n";
     std::cout << "Examples:\n";
@@ -123,9 +138,27 @@ int main(int argc, char **argv)
             flag = 'M';
         else if (arg == "--help" || arg == "-h")
             flag = 'h';
+        else if (arg == "--purple filter")
+            flag = 'p';
+        else if (arg == "--yellow filter")
+            flag = 'y';
+        else if (arg == "--redscale")
+            flag = 'q';
 
         switch (flag)
         {
+        case 'q': // redscale
+            redscale(img);
+            filterApplied = true;
+            break;
+        case 'p': // purplefilter
+            purpleFilter(img, 40);
+            filterApplied = true;
+            break;
+        case 'y': // purplefilter
+            yellowFilter(img, 20);
+            filterApplied = true;
+            break;
         case 'g': // grayscale
             grayscale(img);
             filterApplied = true;
@@ -142,8 +175,20 @@ int main(int argc, char **argv)
             break;
 
         case 'r': // reflect
-            reflect(img);
-            filterApplied = true;
+            if(i+1<argc){
+                if (*argv[++i]=='v'){
+                    reflectV(img);
+                    filterApplied = true;
+                }
+                else if (*argv[++i]=='h'){
+                    reflectH(img);
+                    filterApplied = true;
+                }
+                else{
+                    reflectV(img);
+                    filterApplied = true;
+                }
+            }
             break;
 
         case 'R': // rotate
@@ -470,7 +515,7 @@ void merge(Image &image1, Image &image2, Image &outputImage, float alpha, char m
     }
 }
 
-void reflect(Image &image)
+void reflectH(Image &image)
 {
     // Iterate through each row
     for (int row = 0; row < image.height; row++)
@@ -489,6 +534,31 @@ void reflect(Image &image)
 
                 // Copy stored left pixel to right position
                 image((image.width - 1 - col), row, k) = temp;
+            }
+        }
+    }
+    return;
+}
+
+void reflectV(Image &image)
+{
+    // Iterate through each row
+    for (int row = 0; row < image.height / 2; row++)
+    {
+        // Only process half the width to avoid double-swapping
+        for (int col = 0; col < image.width; col++)
+        {
+            // Swap all three color channels
+            for (int k = 0; k < 3; k++)
+            {
+                // Temporarily store left pixel value
+                unsigned int temp = image(col, row, k);
+
+                // Copy downwards pixel to upwards position
+                image(col, row, k) = image(col, (image.height - 1 - row), k);
+
+                // Copy stored upwards pixel to downwards position
+                image(col, (image.height - 1 - row), k)= temp;
             }
         }
     }
@@ -778,8 +848,8 @@ Image resizeImageInMemory(Image &image, int newWidth, int newHeight)
         {
             for (int k = 0; k <= 2; k++)
             {
-                const int oldX = static_cast<int>(round(col * scaleFactorX));
-                const int oldY = static_cast<int>(round(row * scaleFactorY));
+                const int oldX = static_cast<int>(std::floor(col * scaleFactorX));
+                const int oldY = static_cast<int>(std::floor(row * scaleFactorY));
                 if (oldX >= 0 && oldX < image.width && oldY >= 0 && oldY < image.height)
                 {
                     resizedImage(col, row, k) = image(oldX, oldY, k);
@@ -833,6 +903,42 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
 
     image = resizeImageInMemory(image, newWidth, newHeight);
     image.saveImage(imageName + "_output_resized.jpg");
+}
+
+void purpleFilter(Image &image, const int intensity) {
+    for (int i = 0; i < image.width; i++) {
+        for (int j = 0; j < image.height; j++) {
+            unsigned char &r = image(i, j, 0);
+            unsigned char &g = image(i, j, 1);
+            unsigned char &b = image(i, j, 2);
+
+            int new_r = r + intensity;
+            int new_g = g - intensity;
+            int new_b = b + intensity;
+
+            r = std::max(0, std::min(255, new_r));
+            g = std::max(0, std::min(255, new_g));
+            b = std::max(0, std::min(255, new_b));
+        }
+    }
+}
+
+void yellowFilter(Image &image, const int intensity) {
+    for (int i = 0; i < image.width; i++) {
+        for (int j = 0; j < image.height; j++) {
+            unsigned char &r = image(i, j, 0);
+            unsigned char &g = image(i, j, 1);
+            unsigned char &b = image(i, j, 2);
+
+            int new_r = r + intensity;
+            int new_g = g + intensity;
+            int new_b = b - intensity;
+
+            r = std::max(0, std::min(255, new_r));
+            g = std::max(0, std::min(255, new_g));
+            b = std::max(0, std::min(255, new_b));
+        }
+    }
 }
 
 void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
@@ -934,4 +1040,17 @@ void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
     }
 
     sourceImage = morphedImage;
+}
+
+void redscale(Image &img){
+    // Grey scale to remove all colors.
+    grayscale(img);
+    // To make bright areas dark and vice versa.
+    invert(img);
+    // Replaces darkness with redness for each pixel.
+    for(int row = 0; row<img.height; row++){
+        for(int col = 0; col<img.width; col++){
+            img(col, row, 0)=255;
+        }
+    }
 }
