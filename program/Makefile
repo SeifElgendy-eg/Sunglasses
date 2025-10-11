@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -I. -g
-TARGET = main
-SRC = main.cpp
+TARGET = sunglasses
+SRC = sunglasses.cpp
 
 $(TARGET): $(SRC)
 	$(CXX) $(CXXFLAGS) $(SRC) -o $(TARGET)

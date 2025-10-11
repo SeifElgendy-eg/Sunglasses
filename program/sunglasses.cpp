@@ -1,10 +1,12 @@
 /*
 Section: S4
 
+Prof: Mohamed El Ramly
+
 Team Details:
 Marwan Mohamed Hassan    20240735
 Mohamed Talat Sayed      20240734
-Seifeldeen Hatem Moahmed 20242424
+Seif eldin Hatem Moahmed 20242424
 
 Filters:
 Marwan  2,5,8,11,13,16
@@ -12,13 +14,15 @@ Mohamed 1,4,7,10,17
 Seif    3,6,9,12
 
 Video & Shared Doc link: https://drive.google.com/drive/folders/1mMW3ldwtyYbjgCZvTc0kgBcvJOAODGeX?usp=sharing
+repo: https://github.com/SeifElgendy-eg/Sunglasses
 
 Menu:
 Seif
 
 */
-//#include "Image_Class.h" 
-// change to this if compilation fails
+// #include "Image_Class.h"
+//  change to this if compilation fails
+
 #include <Image_Class.h>
 #include <iostream>
 #include <cmath>
@@ -28,7 +32,6 @@ Seif
 #include <random>
 #include <chrono>
 #include <limits>
-
 
 void grayscale(Image &image);
 void bnw(Image &image);
@@ -57,7 +60,7 @@ void printUsage(const char *programName)
     std::cout << "  --grayscale              Convert image to grayscale\n";
     std::cout << "  --bnw                    Convert image to black and white\n";
     std::cout << "  --invert                 Invert image colors\n";
-    std::cout << "  --reflect [v/h]          Reflect image horizontally [h] or vertically [v]\n";
+    std::cout << "  --reflect [V/H]          Reflect image horizontally [h] or vertically [v]\n";
     std::cout << "  --rotate [degrees]       Rotate image (default: 90)\n";
     std::cout << "  --lighten [percent]      Lighten image (default: 20%)\n";
     std::cout << "  --darken [percent]       Darken image (default: 20%)\n";
@@ -175,17 +178,21 @@ int main(int argc, char **argv)
             break;
 
         case 'r': // reflect
-            if(i+1<argc){
-                if (*argv[++i]=='v'){
+            if (i + 1 < argc)
+            {
+                if (*argv[++i] == 'V')
+                {
                     reflectV(img);
                     filterApplied = true;
                 }
-                else if (*argv[++i]=='h'){
+                else if (*argv[++i] == 'H')
+                {
                     reflectH(img);
                     filterApplied = true;
                 }
-                else{
-                    reflectV(img);
+                else
+                {
+                    reflectH(img);
                     filterApplied = true;
                 }
             }
@@ -558,7 +565,7 @@ void reflectV(Image &image)
                 image(col, row, k) = image(col, (image.height - 1 - row), k);
 
                 // Copy stored upwards pixel to downwards position
-                image(col, (image.height - 1 - row), k)= temp;
+                image(col, (image.height - 1 - row), k) = temp;
             }
         }
     }
@@ -641,8 +648,7 @@ void crop(Image &image, int x, int y, int width, int height)
                   << image.width << " x " << image.height << ")." << std::endl;
         return;
     }
-
-    if (x + width > image.width || y + height > image.height)
+    s if (x + width > image.width || y + height > image.height)
     {
         std::cerr << "Error: Crop area extends beyond image bounds. Max crop size from ("
                   << x << ", " << y << ") is " << (image.width - x) << " x " << (image.height - y) << "." << std::endl;
@@ -670,6 +676,8 @@ void crop(Image &image, int x, int y, int width, int height)
             cropped(col, row, 2) = image(x + col, y + row, 2); // Blue
         }
     }
+    // Replace original image with cropped version
+    image = cropped;
 }
 
 void edges(Image &image)
@@ -905,9 +913,12 @@ void resizeImage(Image &image, const std::string &imageName, int newWidth, int n
     image.saveImage(imageName + "_output_resized.jpg");
 }
 
-void purpleFilter(Image &image, const int intensity) {
-    for (int i = 0; i < image.width; i++) {
-        for (int j = 0; j < image.height; j++) {
+void purpleFilter(Image &image, const int intensity)
+{
+    for (int i = 0; i < image.width; i++)
+    {
+        for (int j = 0; j < image.height; j++)
+        {
             unsigned char &r = image(i, j, 0);
             unsigned char &g = image(i, j, 1);
             unsigned char &b = image(i, j, 2);
@@ -923,9 +934,12 @@ void purpleFilter(Image &image, const int intensity) {
     }
 }
 
-void yellowFilter(Image &image, const int intensity) {
-    for (int i = 0; i < image.width; i++) {
-        for (int j = 0; j < image.height; j++) {
+void yellowFilter(Image &image, const int intensity)
+{
+    for (int i = 0; i < image.width; i++)
+    {
+        for (int j = 0; j < image.height; j++)
+        {
             unsigned char &r = image(i, j, 0);
             unsigned char &g = image(i, j, 1);
             unsigned char &b = image(i, j, 2);
@@ -1042,15 +1056,18 @@ void morph(Image &sourceImage, Image &targetImage, Image &weightsImage)
     sourceImage = morphedImage;
 }
 
-void redscale(Image &img){
+void redscale(Image &img)
+{
     // Grey scale to remove all colors.
     grayscale(img);
     // To make bright areas dark and vice versa.
     invert(img);
     // Replaces darkness with redness for each pixel.
-    for(int row = 0; row<img.height; row++){
-        for(int col = 0; col<img.width; col++){
-            img(col, row, 0)=255;
+    for (int row = 0; row < img.height; row++)
+    {
+        for (int col = 0; col < img.width; col++)
+        {
+            img(col, row, 0) = 255;
         }
     }
 }
