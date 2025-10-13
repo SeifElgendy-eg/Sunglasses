@@ -89,8 +89,8 @@ void MainWindow::createMenuBar()
                            "Team:\n"
                            "Marwan Mohamed Hassan (20240735)\n"
                            "Mohamed Talat Sayed (20240734)\n"
-                           "Seifeldeen Hatem Moahmed (20242424)\n\n"
-                           "Section: s12");
+                           "Seif eldin Hatem Mahmoud (20242424)\n\n"
+                           "Section: s4");
     });
 }
 

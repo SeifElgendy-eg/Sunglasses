@@ -12,7 +12,6 @@
 #include <memory>
 #include <stdexcept>
 
-// Configuration Constants
 namespace Config
 {
 const int MAX_IMAGE_DIMENSION = 16384;
@@ -26,7 +25,6 @@ const int MORPH_FALLBACK_CHECKS = 500;
 const double MORPH_EARLY_STOP = 10.0;
 }
 
-// Helper function to validate image dimensions
 bool validateDimensions(int width, int height)
 {
     if (width < Config::MIN_IMAGE_DIMENSION || height < Config::MIN_IMAGE_DIMENSION)
