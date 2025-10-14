@@ -1,4 +1,4 @@
-#include "MainWindow.h"
+#include "mainwindow.h"
 #include "CanvasWidget.h"
 
 #include <QFileDialog>
@@ -60,9 +60,27 @@ void MainWindow::createMenu() {
 
     QMenu *editMenu = menuBar->addMenu("&Edit");
 
+    // UNDO ACTION
+    QAction *undoAction = editMenu->addAction("&Undo");
+    undoAction->setShortcut(QKeySequence::Undo); // Ctrl+Z
+    connect(undoAction, &QAction::triggered, this, [this](){
+        canvas->undo();
+    });
+
+    // REDO ACTION
+    QAction *redoAction = editMenu->addAction("&Redo");
+    redoAction->setShortcut(QKeySequence::Redo); // Ctrl+Shift+Z
+    connect(redoAction, &QAction::triggered, this, [this](){
+        canvas->redo();
+    });
+
+    editMenu->addSeparator();
+
     QAction *resetAction = editMenu->addAction("&Reset to Original");
     resetAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
-    connect(resetAction, &QAction::triggered, this, &MainWindow::saveImage);
+    connect(resetAction, &QAction::triggered, this, [this](){
+        canvas->resetImage();
+    });
 
     QMenu *filtersMenu = menuBar->addMenu("&Filters");
 

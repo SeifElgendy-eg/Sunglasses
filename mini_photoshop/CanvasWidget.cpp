@@ -9,9 +9,11 @@ CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent) {
     setBackgroundRole(QPalette::Base);
 }
 
+
 void CanvasWidget::setImage(const QImage &img) {
     m_image = img;
     o_image = img;
+    r_image = img;
 
     start_x = 0;
     end_x = m_image.width();
@@ -209,10 +211,52 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
         update();
     }
 }
+void CanvasWidget::saveState() {
+    m_undoStack.push(qMakePair(m_image, o_image));
+    if (m_undoStack.size() > MAX_UNDO_STEPS) {
+        m_undoStack.removeFirst();
+    }
+    clearRedoStack();
+}
+
+void CanvasWidget::undo() {
+    if (m_undoStack.isEmpty()) return;
+    m_redoStack.push(qMakePair(m_image, o_image));
+    QPair<QImage, QImage> state = m_undoStack.pop();
+    m_image = state.first;
+    o_image = state.second;
+    m_baseImage = QImage();
+    o_baseImage = QImage();
+    update();
+}
+
+void CanvasWidget::redo() {
+    if (m_redoStack.isEmpty()) return;
+    m_undoStack.push(qMakePair(m_image, o_image));
+    QPair<QImage, QImage> state = m_redoStack.pop();
+    m_image = state.first;
+    o_image = state.second;
+    m_baseImage = QImage();
+    o_baseImage = QImage();
+    update();
+}
+
+void CanvasWidget::clearRedoStack() {
+    m_redoStack.clear();
+}
+
+void CanvasWidget::resetImage(){
+    saveState();
+    m_image = r_image;
+    o_image = r_image;
+    update();
+}
 
 void CanvasWidget::applyGrayScaleFilter() {
     if (m_image.isNull())
         return;
+
+      saveState();
 
     QImage result = m_image;
 
@@ -244,6 +288,8 @@ void CanvasWidget::applyInversionFilter() {
     if (m_image.isNull())
         return;
 
+    saveState();
+
     QImage result = m_image;
 
     for (int x = start_x; x < end_x; x++) {
@@ -270,6 +316,8 @@ void CanvasWidget::applyInversionFilter() {
 void CanvasWidget::applyVeriticalReflection() {
     if (m_image.isNull())
         return;
+
+    saveState();
 
     QImage result = m_image;
 
@@ -313,6 +361,8 @@ void CanvasWidget::applyHorizontalReflection() {
     if (m_image.isNull())
         return;
 
+    saveState();
+
     QImage result = m_image;
 
     for (int x = start_x; x < end_x / 2; x++) {
@@ -355,6 +405,8 @@ void CanvasWidget::applyYellowFilter(const int intensity) {
     if (m_image.isNull())
         return;
 
+    saveState();
+
     QImage result = m_image;
 
     for (int x = start_x; x < end_x; x++) {
@@ -387,6 +439,8 @@ void CanvasWidget::applyYellowFilter(const int intensity) {
 void CanvasWidget::applyPurpleFilter(const int intensity) {
     if (m_image.isNull())
         return;
+
+    saveState();
 
     QImage result = m_image;
 
@@ -424,6 +478,8 @@ void CanvasWidget::applyInfraRedFilter() {
     if (m_image.isNull())
         return;
 
+    saveState();
+
     QImage result = m_image;
 
     for (int x = start_x; x < end_x; x++) {
@@ -450,6 +506,8 @@ void CanvasWidget::applyInfraRedFilter() {
 void CanvasWidget::applyBlackAndWhiteFilter() {
     if (m_image.isNull())
         return;
+
+    saveState();
 
     QImage result = m_image;
 
@@ -493,6 +551,8 @@ void CanvasWidget::applyBlurFilter(int kernelSize) {
         m_baseImage = m_image;
     if (m_image.isNull())
         return;
+
+    saveState();
 
     // Ensure minimum and odd kernel size
     if (kernelSize < 1)
@@ -575,7 +635,7 @@ void CanvasWidget::applyBlurFilter(int kernelSize) {
     }
     m_image = blurred;
     o_image = o_blurred;
-    update(); // redraw on screen
+    update();
 }
 
 void CanvasWidget::applyResizeTool(int newWidth, int newHeight) {
@@ -587,7 +647,8 @@ void CanvasWidget::applyResizeTool(int newWidth, int newHeight) {
     if (newHeight <= 0)
         newHeight = m_image.height();
 
-    // Apply resizing (nearest neighbor)
+    saveState();
+
     QImage resized(newWidth, newHeight, o_image.format());
     double scaleY = static_cast<double>(o_image.height()) / newHeight;
     double scaleX = static_cast<double>(o_image.width()) / newWidth;
@@ -610,6 +671,8 @@ void CanvasWidget::applyEdgeDetection() {
 
     const int Gx[3][3] = {{-1, 0, 1}, {-2, 0, 2}, {-1, 0, 1}};
     const int Gy[3][3] = {{-1, -2, -1}, {0, 0, 0}, {1, 2, 1}};
+
+    saveState();
 
     QImage copy = m_image;
 
@@ -715,6 +778,7 @@ void CanvasWidget::applyLightOrDarkFilter(int percent) {
     if (m_image.isNull())
         return;
 
+    saveState();
 
     for (int x = start_x; x < end_x; x++) {
         for (int y = start_y; y < end_y; y++) {
