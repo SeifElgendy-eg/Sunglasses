@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/MyQtApp.dir/link.d CMakeFiles/MyQtApp.dir/main.cpp.o -o MyQtApp  /usr/lib/libQt6Widgets.so.6.9.2 /usr/lib/libQt6Gui.so.6.9.2 /usr/lib/libGLX.so /usr/lib/libOpenGL.so /usr/lib/libQt6Core.so.6.9.2

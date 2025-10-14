@@ -1,7 +1,0 @@
-<RCC>
-  <qresource prefix="/qt/qml/Main/">
-    <file alias="Main.qml">/home/shade/codingProjects/fcai/my_qt_project/Main.qml</file>
-    <file alias="resources.qrc">/home/shade/codingProjects/fcai/my_qt_project/resources.qrc</file>
-  </qresource>
-</RCC>
-
