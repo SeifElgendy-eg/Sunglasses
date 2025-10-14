@@ -64,6 +64,7 @@ private slots:
 private:
     // UI Setup
     void setupUI();
+    void applyModernStyle();
     void createMenuBar();
     void createToolBar();
     void createCentralWidget();
@@ -82,7 +83,6 @@ private:
     std::unique_ptr<Image> originalImage;
     std::unique_ptr<Image> targetImage;
     std::unique_ptr<Image> weightsImage;
-
     QString currentFilePath;
     QString targetFilePath;
     QString weightsFilePath;
@@ -105,7 +105,6 @@ private:
 
     QSpinBox *lightenSpinBox;
     QPushButton *btnLighten;
-
     QSpinBox *darkenSpinBox;
     QPushButton *btnDarken;
 

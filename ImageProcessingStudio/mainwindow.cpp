@@ -13,6 +13,9 @@
 #include <QApplication>
 #include <QGroupBox>
 #include <QSplitter>
+#include <QStackedWidget>
+#include <QTabWidget>
+#include <QScreen>
 
 extern void grayscale(Image &image);
 extern void bnw(Image &image);
@@ -30,13 +33,18 @@ extern void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, d
 extern void morphAnimated(Image &sourceImage, Image &targetImage, Image &weightsImage,
                           const std::string &outputPath, int frameCount, double blendFactor);
 
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setupUI();
+    applyModernStyle();
     updateStatusBar("Ready");
-    resize(1400, 900);
+
+    QScreen *screen = QApplication::primaryScreen();
+    QRect screenGeometry = screen->geometry();
+    int width = qMin(1600, static_cast<int>(screenGeometry.width() * 0.85));
+    int height = qMin(1000, static_cast<int>(screenGeometry.height() * 0.85));
+    resize(width, height);
 }
 
 MainWindow::~MainWindow()
@@ -52,6 +60,209 @@ void MainWindow::setupUI()
     createCentralWidget();
     createFilterPanel();
     createMorphPanel();
+}
+
+void MainWindow::applyModernStyle()
+{
+    setStyleSheet(R"(
+        QMainWindow {
+            background-color: #1a1a1a;
+        }
+        QGroupBox {
+            font-weight: 600;
+            font-size: 11pt;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            margin-top: 10px;
+            padding-top: 18px;
+            background-color: #252525;
+            color: #e8e8e8;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            subcontrol-position: top left;
+            padding: 2px 10px;
+            left: 10px;
+            color: #e8e8e8;
+        }
+        QPushButton {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 5px;
+            font-size: 10pt;
+            font-weight: 500;
+            min-height: 32px;
+        }
+        QPushButton:hover {
+            background-color: #3b82f6;
+        }
+        QPushButton:pressed {
+            background-color: #1d4ed8;
+        }
+        QPushButton:disabled {
+            background-color: #404040;
+            color: #808080;
+        }
+        QSpinBox, QDoubleSpinBox {
+            background-color: #2d2d2d;
+            color: #e8e8e8;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 10pt;
+            min-height: 28px;
+            selection-background-color: #2563eb;
+        }
+        QSpinBox:focus, QDoubleSpinBox:focus {
+            border: 1px solid #3b82f6;
+        }
+        QSpinBox::up-button, QDoubleSpinBox::up-button {
+            background-color: #404040;
+            border-radius: 2px;
+            width: 16px;
+        }
+        QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover {
+            background-color: #4a4a4a;
+        }
+        QSpinBox::down-button, QDoubleSpinBox::down-button {
+            background-color: #404040;
+            border-radius: 2px;
+            width: 16px;
+        }
+        QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
+            background-color: #4a4a4a;
+        }
+        QLabel {
+            color: #d0d0d0;
+            font-size: 9.5pt;
+        }
+        QComboBox {
+            background-color: #2d2d2d;
+            color: #e8e8e8;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            padding: 6px 8px;
+            min-height: 28px;
+        }
+        QComboBox:focus {
+            border: 1px solid #3b82f6;
+        }
+        QComboBox::drop-down {
+            border: none;
+            width: 20px;
+        }
+        QComboBox::down-arrow {
+            image: none;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #d0d0d0;
+            margin-right: 5px;
+        }
+        QScrollArea {
+            border: none;
+            background-color: transparent;
+        }
+        QScrollBar:vertical {
+            background-color: #1a1a1a;
+            width: 12px;
+            border-radius: 6px;
+        }
+        QScrollBar::handle:vertical {
+            background-color: #404040;
+            border-radius: 6px;
+            min-height: 30px;
+        }
+        QScrollBar::handle:vertical:hover {
+            background-color: #4a4a4a;
+        }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            height: 0px;
+        }
+        QToolBar {
+            background-color: #252525;
+            border-bottom: 1px solid #404040;
+            spacing: 6px;
+            padding: 8px;
+        }
+        QToolBar QPushButton {
+            padding: 10px 24px;
+            margin: 0px 4px;
+            font-size: 11pt;
+        }
+        QMenuBar {
+            background-color: #252525;
+            color: #e8e8e8;
+            border-bottom: 1px solid #404040;
+            padding: 4px;
+        }
+        QMenuBar::item {
+            padding: 8px 16px;
+            background-color: transparent;
+            border-radius: 4px;
+        }
+        QMenuBar::item:selected {
+            background-color: #2563eb;
+        }
+        QMenu {
+            background-color: #252525;
+            color: #e8e8e8;
+            border: 1px solid #404040;
+            border-radius: 6px;
+            padding: 4px;
+        }
+        QMenu::item {
+            padding: 8px 32px 8px 16px;
+            border-radius: 4px;
+        }
+        QMenu::item:selected {
+            background-color: #2563eb;
+        }
+        QStatusBar {
+            background-color: #252525;
+            color: #d0d0d0;
+            border-top: 1px solid #404040;
+            padding: 4px;
+        }
+        QProgressBar {
+            border: 1px solid #404040;
+            border-radius: 4px;
+            background-color: #2d2d2d;
+            text-align: center;
+            color: #e8e8e8;
+            height: 20px;
+        }
+        QProgressBar::chunk {
+            background-color: #2563eb;
+            border-radius: 3px;
+        }
+        QTabWidget::pane {
+            border: 1px solid #404040;
+            border-radius: 6px;
+            background-color: #1e1e1e;
+            top: -1px;
+        }
+        QTabBar::tab {
+            background-color: #2d2d2d;
+            color: #b0b0b0;
+            padding: 12px 24px;
+            margin-right: 2px;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            border: 1px solid #404040;
+            border-bottom: none;
+        }
+        QTabBar::tab:selected {
+            background-color: #1e1e1e;
+            color: #e8e8e8;
+            border-bottom: 2px solid #2563eb;
+        }
+        QTabBar::tab:hover:!selected {
+            background-color: #353535;
+            color: #d0d0d0;
+        }
+    )");
 }
 
 void MainWindow::createMenuBar()
@@ -81,41 +292,82 @@ void MainWindow::createMenuBar()
     resetAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
     connect(resetAction, &QAction::triggered, this, &MainWindow::onResetImage);
 
+    QMenu *filtersMenu = menuBar->addMenu("&Filters");
+
+    QAction *grayscaleAction = filtersMenu->addAction("&Grayscale");
+    grayscaleAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_G));
+    connect(grayscaleAction, &QAction::triggered, this, &MainWindow::onGrayscale);
+
+    QAction *bnwAction = filtersMenu->addAction("&Black && White");
+    bnwAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_B));
+    connect(bnwAction, &QAction::triggered, this, &MainWindow::onBlackAndWhite);
+
+    QAction *invertAction = filtersMenu->addAction("&Invert Colors");
+    invertAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_I));
+    connect(invertAction, &QAction::triggered, this, &MainWindow::onInvert);
+
+    QAction *reflectAction = filtersMenu->addAction("&Reflect");
+    connect(reflectAction, &QAction::triggered, this, &MainWindow::onReflect);
+
+    filtersMenu->addSeparator();
+
+    QAction *edgesAction = filtersMenu->addAction("&Edge Detection");
+    connect(edgesAction, &QAction::triggered, this, &MainWindow::onEdges);
+
+    QAction *blurAction = filtersMenu->addAction("Bl&ur");
+    connect(blurAction, &QAction::triggered, this, &MainWindow::onBlur);
+
     QMenu *helpMenu = menuBar->addMenu("&Help");
     QAction *aboutAction = helpMenu->addAction("&About");
     connect(aboutAction, &QAction::triggered, [this]() {
-        QMessageBox::about(this, "About",
-                           "Image Processing Studio\n\n"
-                           "Team:\n"
-                           "Marwan Mohamed Hassan (20240735)\n"
-                           "Mohamed Talat Sayed (20240734)\n"
-                           "Seif eldin Hatem Mahmoud (20242424)\n\n"
-                           "Section: s4");
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle("About");
+        msgBox.setTextFormat(Qt::RichText);
+        msgBox.setText("<h2 style='color: #2563eb;'>Image Processing Studio</h2>");
+        msgBox.setInformativeText(
+            "<p style='font-size: 11pt;'><b>Team Members:</b><br>"
+            "• Marwan Mohamed Hassan (20240735)<br>"
+            "• Mohamed Talat Sayed (20240734)<br>"
+            "• Seif eldin Hatem Mahmoud (20242424)</p>"
+            "<p style='font-size: 10pt; color: #808080;'>Section: S4</p>");
+        msgBox.setStyleSheet("QMessageBox { background-color: #252525; }");
+        msgBox.exec();
     });
 }
 
 void MainWindow::createToolBar()
 {
     QToolBar *toolBar = new QToolBar(this);
+    toolBar->setMovable(false);
+    toolBar->setIconSize(QSize(24, 24));
+    toolBar->setMinimumHeight(64);
     addToolBar(Qt::TopToolBarArea, toolBar);
 
     QPushButton *btnOpen = new QPushButton("Open", this);
+    btnOpen->setMinimumSize(110, 40);
     connect(btnOpen, &QPushButton::clicked, this, &MainWindow::onLoadImage);
     toolBar->addWidget(btnOpen);
 
     QPushButton *btnSave = new QPushButton("Save", this);
+    btnSave->setMinimumSize(110, 40);
     connect(btnSave, &QPushButton::clicked, this, &MainWindow::onSaveImage);
     toolBar->addWidget(btnSave);
 
     toolBar->addSeparator();
 
     QPushButton *btnReset = new QPushButton("Reset", this);
+    btnReset->setMinimumSize(110, 40);
+    btnReset->setStyleSheet("QPushButton { background-color: #dc2626; } QPushButton:hover { background-color: #ef4444; } QPushButton:pressed { background-color: #b91c1c; }");
     connect(btnReset, &QPushButton::clicked, this, &MainWindow::onResetImage);
     toolBar->addWidget(btnReset);
 
-    toolBar->addSeparator();
+    QWidget *spacer = new QWidget();
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    toolBar->addWidget(spacer);
+
     progressBar = new QProgressBar(this);
-    progressBar->setMaximumWidth(200);
+    progressBar->setMinimumHeight(28);
+    progressBar->setMaximumWidth(220);
     progressBar->setVisible(false);
     toolBar->addWidget(progressBar);
 }
@@ -126,13 +378,22 @@ void MainWindow::createCentralWidget()
     setCentralWidget(centralWidget);
 
     QHBoxLayout *mainLayout = new QHBoxLayout(centralWidget);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
 
     imageLabel = new QLabel(this);
     imageLabel->setAlignment(Qt::AlignCenter);
-    imageLabel->setStyleSheet("QLabel { background-color: #2b2b2b; border: 2px solid #555; }");
-    imageLabel->setMinimumSize(400, 400);
-    imageLabel->setText("No image loaded\n\nClick 'Open' or use File > Open Image");
-    imageLabel->setStyleSheet("QLabel { background-color: #2b2b2b; color: #aaa; font-size: 14pt; }");
+    imageLabel->setStyleSheet(
+        "QLabel { "
+        "background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+        "stop:0 #1e1e1e, stop:1 #1a1a1a); "
+        "border: none; "
+        "color: #808080; "
+        "font-size: 14pt; "
+        "font-weight: 400; "
+        "}");
+    imageLabel->setMinimumSize(600, 500);
+    imageLabel->setText("No image loaded\n\nClick Open or drag an image to begin");
 
     scrollArea = new QScrollArea(this);
     scrollArea->setWidget(imageLabel);
@@ -141,25 +402,39 @@ void MainWindow::createCentralWidget()
 
     mainLayout->addWidget(scrollArea, 3);
 
-    QSplitter *splitter = new QSplitter(Qt::Vertical, this);
-    mainLayout->addWidget(splitter, 1);
+    QTabWidget *tabWidget = new QTabWidget(this);
+    tabWidget->setMinimumWidth(400);
+    tabWidget->setMaximumWidth(450);
+
+    mainLayout->addWidget(tabWidget);
 
     statusBar()->showMessage("Ready");
 }
 
 void MainWindow::createFilterPanel()
 {
-    filterPanel = new QGroupBox("Filters", this);
-    QVBoxLayout *layout = new QVBoxLayout(filterPanel);
+    filterPanel = new QGroupBox(this);
 
-    QGroupBox *basicGroup = new QGroupBox("Basic Filters", filterPanel);
+    QScrollArea *filterScroll = new QScrollArea();
+    filterScroll->setWidgetResizable(true);
+    filterScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    QWidget *filterContent = new QWidget();
+    QVBoxLayout *layout = new QVBoxLayout(filterContent);
+    layout->setSpacing(12);
+    layout->setContentsMargins(12, 12, 12, 12);
+
+    // Basic Filters
+    QGroupBox *basicGroup = new QGroupBox("Basic Filters", filterContent);
     QGridLayout *basicLayout = new QGridLayout(basicGroup);
+    basicLayout->setSpacing(8);
+    basicLayout->setContentsMargins(10, 22, 10, 10);
 
     btnGrayscale = new QPushButton("Grayscale", basicGroup);
     connect(btnGrayscale, &QPushButton::clicked, this, &MainWindow::onGrayscale);
     basicLayout->addWidget(btnGrayscale, 0, 0);
 
-    btnBnW = new QPushButton("Black & White", basicGroup);
+    btnBnW = new QPushButton("B&W", basicGroup);
     connect(btnBnW, &QPushButton::clicked, this, &MainWindow::onBlackAndWhite);
     basicLayout->addWidget(btnBnW, 0, 1);
 
@@ -177,57 +452,88 @@ void MainWindow::createFilterPanel()
 
     layout->addWidget(basicGroup);
 
-    QGroupBox *rotateGroup = new QGroupBox("Rotate", filterPanel);
-    QHBoxLayout *rotateLayout = new QHBoxLayout(rotateGroup);
+    // Rotation
+    QGroupBox *rotateGroup = new QGroupBox("Rotation", filterContent);
+    QVBoxLayout *rotateLayout = new QVBoxLayout(rotateGroup);
+    rotateLayout->setSpacing(8);
+    rotateLayout->setContentsMargins(10, 22, 10, 10);
+
+    QHBoxLayout *rotateControlLayout = new QHBoxLayout();
+    rotateControlLayout->addWidget(new QLabel("Degrees:"));
     rotateSpinBox = new QSpinBox(rotateGroup);
     rotateSpinBox->setRange(0, 360);
     rotateSpinBox->setSingleStep(90);
     rotateSpinBox->setValue(90);
     rotateSpinBox->setSuffix("°");
-    btnRotate = new QPushButton("Apply", rotateGroup);
+    rotateControlLayout->addWidget(rotateSpinBox, 1);
+    rotateLayout->addLayout(rotateControlLayout);
+
+    btnRotate = new QPushButton("Apply Rotation", rotateGroup);
     connect(btnRotate, &QPushButton::clicked, this, &MainWindow::onRotate);
-    rotateLayout->addWidget(rotateSpinBox);
     rotateLayout->addWidget(btnRotate);
+
     layout->addWidget(rotateGroup);
 
-    QGroupBox *brightnessGroup = new QGroupBox("Brightness", filterPanel);
-    QGridLayout *brightnessLayout = new QGridLayout(brightnessGroup);
+    // Brightness
+    QGroupBox *brightnessGroup = new QGroupBox("Brightness", filterContent);
+    QVBoxLayout *brightnessLayout = new QVBoxLayout(brightnessGroup);
+    brightnessLayout->setSpacing(8);
+    brightnessLayout->setContentsMargins(10, 22, 10, 10);
 
-    brightnessLayout->addWidget(new QLabel("Lighten %:"), 0, 0);
+    QHBoxLayout *lightenLayout = new QHBoxLayout();
+    lightenLayout->addWidget(new QLabel("Lighten:"));
     lightenSpinBox = new QSpinBox(brightnessGroup);
     lightenSpinBox->setRange(1, 200);
     lightenSpinBox->setValue(20);
-    brightnessLayout->addWidget(lightenSpinBox, 0, 1);
+    lightenSpinBox->setSuffix("%");
+    lightenLayout->addWidget(lightenSpinBox, 1);
     btnLighten = new QPushButton("Apply", brightnessGroup);
+    btnLighten->setMaximumWidth(70);
     connect(btnLighten, &QPushButton::clicked, this, &MainWindow::onLighten);
-    brightnessLayout->addWidget(btnLighten, 0, 2);
+    lightenLayout->addWidget(btnLighten);
+    brightnessLayout->addLayout(lightenLayout);
 
-    brightnessLayout->addWidget(new QLabel("Darken %:"), 1, 0);
+    QHBoxLayout *darkenLayout = new QHBoxLayout();
+    darkenLayout->addWidget(new QLabel("Darken:"));
     darkenSpinBox = new QSpinBox(brightnessGroup);
     darkenSpinBox->setRange(1, 200);
     darkenSpinBox->setValue(20);
-    brightnessLayout->addWidget(darkenSpinBox, 1, 1);
+    darkenSpinBox->setSuffix("%");
+    darkenLayout->addWidget(darkenSpinBox, 1);
     btnDarken = new QPushButton("Apply", brightnessGroup);
+    btnDarken->setMaximumWidth(70);
     connect(btnDarken, &QPushButton::clicked, this, &MainWindow::onDarken);
-    brightnessLayout->addWidget(btnDarken, 1, 2);
+    darkenLayout->addWidget(btnDarken);
+    brightnessLayout->addLayout(darkenLayout);
 
     layout->addWidget(brightnessGroup);
 
-    QGroupBox *blurGroup = new QGroupBox("Blur", filterPanel);
-    QHBoxLayout *blurLayout = new QHBoxLayout(blurGroup);
-    blurLayout->addWidget(new QLabel("Kernel Size:"));
+    // Blur
+    QGroupBox *blurGroup = new QGroupBox("Blur Effect", filterContent);
+    QVBoxLayout *blurLayout = new QVBoxLayout(blurGroup);
+    blurLayout->setSpacing(8);
+    blurLayout->setContentsMargins(10, 22, 10, 10);
+
+    QHBoxLayout *blurControlLayout = new QHBoxLayout();
+    blurControlLayout->addWidget(new QLabel("Kernel:"));
     blurSpinBox = new QSpinBox(blurGroup);
     blurSpinBox->setRange(3, 21);
     blurSpinBox->setSingleStep(2);
     blurSpinBox->setValue(5);
-    btnBlur = new QPushButton("Apply", blurGroup);
+    blurControlLayout->addWidget(blurSpinBox, 1);
+    blurLayout->addLayout(blurControlLayout);
+
+    btnBlur = new QPushButton("Apply Blur", blurGroup);
     connect(btnBlur, &QPushButton::clicked, this, &MainWindow::onBlur);
-    blurLayout->addWidget(blurSpinBox);
     blurLayout->addWidget(btnBlur);
+
     layout->addWidget(blurGroup);
 
-    QGroupBox *cropGroup = new QGroupBox("Crop", filterPanel);
+    // Crop
+    QGroupBox *cropGroup = new QGroupBox("Crop Image", filterContent);
     QGridLayout *cropLayout = new QGridLayout(cropGroup);
+    cropLayout->setSpacing(8);
+    cropLayout->setContentsMargins(10, 22, 10, 10);
 
     cropLayout->addWidget(new QLabel("X:"), 0, 0);
     cropXSpinBox = new QSpinBox(cropGroup);
@@ -257,13 +563,17 @@ void MainWindow::createFilterPanel()
 
     layout->addWidget(cropGroup);
 
-    QGroupBox *frameGroup = new QGroupBox("Frame", filterPanel);
+    // Frame
+    QGroupBox *frameGroup = new QGroupBox("Add Frame", filterContent);
     QGridLayout *frameLayout = new QGridLayout(frameGroup);
+    frameLayout->setSpacing(8);
+    frameLayout->setContentsMargins(10, 22, 10, 10);
 
     frameLayout->addWidget(new QLabel("Thickness:"), 0, 0);
     frameThicknessSpinBox = new QSpinBox(frameGroup);
     frameThicknessSpinBox->setRange(1, 200);
     frameThicknessSpinBox->setValue(20);
+    frameThicknessSpinBox->setSuffix("px");
     frameLayout->addWidget(frameThicknessSpinBox, 0, 1, 1, 3);
 
     frameLayout->addWidget(new QLabel("R:"), 1, 0);
@@ -287,19 +597,24 @@ void MainWindow::createFilterPanel()
 
     layout->addWidget(frameGroup);
 
-    QGroupBox *resizeGroup = new QGroupBox("Resize", filterPanel);
+    // Resize
+    QGroupBox *resizeGroup = new QGroupBox("Resize Image", filterContent);
     QGridLayout *resizeLayout = new QGridLayout(resizeGroup);
+    resizeLayout->setSpacing(8);
+    resizeLayout->setContentsMargins(10, 22, 10, 10);
 
     resizeLayout->addWidget(new QLabel("Width:"), 0, 0);
     resizeWidthSpinBox = new QSpinBox(resizeGroup);
     resizeWidthSpinBox->setRange(1, 10000);
     resizeWidthSpinBox->setValue(800);
+    resizeWidthSpinBox->setSuffix("px");
     resizeLayout->addWidget(resizeWidthSpinBox, 0, 1);
 
     resizeLayout->addWidget(new QLabel("Height:"), 1, 0);
     resizeHeightSpinBox = new QSpinBox(resizeGroup);
     resizeHeightSpinBox->setRange(1, 10000);
     resizeHeightSpinBox->setValue(600);
+    resizeHeightSpinBox->setSuffix("px");
     resizeLayout->addWidget(resizeHeightSpinBox, 1, 1);
 
     btnResize = new QPushButton("Apply Resize", resizeGroup);
@@ -310,50 +625,86 @@ void MainWindow::createFilterPanel()
 
     layout->addStretch();
 
-    QSplitter *mainSplitter = qobject_cast<QSplitter*>(
-        centralWidget()->layout()->itemAt(1)->widget());
-    if (mainSplitter) {
-        mainSplitter->addWidget(filterPanel);
+    filterScroll->setWidget(filterContent);
+
+    QVBoxLayout *filterPanelLayout = new QVBoxLayout(filterPanel);
+    filterPanelLayout->setContentsMargins(0, 0, 0, 0);
+    filterPanelLayout->addWidget(filterScroll);
+
+    QTabWidget *tabWidget = centralWidget()->findChild<QTabWidget*>();
+    if (tabWidget) {
+        tabWidget->addTab(filterPanel, "Filters");
     }
 }
 
 void MainWindow::createMorphPanel()
 {
-    morphPanel = new QGroupBox("Morphing", this);
-    QVBoxLayout *layout = new QVBoxLayout(morphPanel);
+    morphPanel = new QGroupBox(this);
 
-    QGroupBox *targetGroup = new QGroupBox("Target Image", morphPanel);
+    QScrollArea *morphScroll = new QScrollArea();
+    morphScroll->setWidgetResizable(true);
+    morphScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    QWidget *morphContent = new QWidget();
+    QVBoxLayout *layout = new QVBoxLayout(morphContent);
+    layout->setSpacing(12);
+    layout->setContentsMargins(12, 12, 12, 12);
+
+    // Target Image
+    QGroupBox *targetGroup = new QGroupBox("Target Image", morphContent);
     QVBoxLayout *targetLayout = new QVBoxLayout(targetGroup);
+    targetLayout->setSpacing(10);
+    targetLayout->setContentsMargins(10, 22, 10, 10);
 
     btnLoadTarget = new QPushButton("Load Target Image", targetGroup);
+    btnLoadTarget->setStyleSheet("QPushButton { background-color: #2563EB; } QPushButton:hover { background-color: #3B82F6; }");
     connect(btnLoadTarget, &QPushButton::clicked, this, &MainWindow::onLoadTargetImage);
     targetLayout->addWidget(btnLoadTarget);
 
     targetImageLabel = new QLabel("No target image loaded", targetGroup);
     targetImageLabel->setAlignment(Qt::AlignCenter);
-    targetImageLabel->setMinimumHeight(100);
-    targetImageLabel->setStyleSheet("QLabel { border: 1px solid #ccc; background: #f0f0f0; }");
+    targetImageLabel->setMinimumHeight(140);
+    targetImageLabel->setStyleSheet(
+        "QLabel { "
+        "border: 2px dashed #404040; "
+        "background: #1a1a1a; "
+        "color: #808080; "
+        "border-radius: 6px; "
+        "padding: 20px; }");
     targetLayout->addWidget(targetImageLabel);
 
     layout->addWidget(targetGroup);
 
-    QGroupBox *weightsGroup = new QGroupBox("Weights Image (Optional)", morphPanel);
+    // Weights Image
+    QGroupBox *weightsGroup = new QGroupBox("Weights Image (Optional)", morphContent);
     QVBoxLayout *weightsLayout = new QVBoxLayout(weightsGroup);
+    weightsLayout->setSpacing(10);
+    weightsLayout->setContentsMargins(10, 22, 10, 10);
 
     btnLoadWeights = new QPushButton("Load Weights Image", weightsGroup);
+    btnLoadWeights->setStyleSheet("QPushButton { background-color: #2563EB; } QPushButton:hover { background-color: #3B82F6; }");
     connect(btnLoadWeights, &QPushButton::clicked, this, &MainWindow::onLoadWeightsImage);
     weightsLayout->addWidget(btnLoadWeights);
 
     weightsImageLabel = new QLabel("No weights image loaded\n(Uniform weights will be used)", weightsGroup);
     weightsImageLabel->setAlignment(Qt::AlignCenter);
-    weightsImageLabel->setMinimumHeight(100);
-    weightsImageLabel->setStyleSheet("QLabel { border: 1px solid #ccc; background: #f0f0f0; }");
+    weightsImageLabel->setMinimumHeight(120);
+    weightsImageLabel->setStyleSheet(
+        "QLabel { "
+        "border: 2px dashed #404040; "
+        "background: #1a1a1a; "
+        "color: #808080; "
+        "border-radius: 6px; "
+        "padding: 20px; }");
     weightsLayout->addWidget(weightsImageLabel);
 
     layout->addWidget(weightsGroup);
 
-    QGroupBox *blendGroup = new QGroupBox("Blend Settings", morphPanel);
+    // Blend Settings
+    QGroupBox *blendGroup = new QGroupBox("Blend Settings", morphContent);
     QVBoxLayout *blendLayout = new QVBoxLayout(blendGroup);
+    blendLayout->setSpacing(10);
+    blendLayout->setContentsMargins(10, 22, 10, 10);
 
     QHBoxLayout *blendControlLayout = new QHBoxLayout();
     blendControlLayout->addWidget(new QLabel("Blend Factor:"));
@@ -364,44 +715,54 @@ void MainWindow::createMorphPanel()
     blendFactorSpinBox->setDecimals(2);
     connect(blendFactorSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this, &MainWindow::onBlendFactorChanged);
-    blendControlLayout->addWidget(blendFactorSpinBox);
+    blendControlLayout->addWidget(blendFactorSpinBox, 1);
     blendLayout->addLayout(blendControlLayout);
 
-    QLabel *blendInfo = new QLabel("0.0 = Match target\n1.0 = Keep source", blendGroup);
-    blendInfo->setStyleSheet("QLabel { color: #666; font-size: 9pt; }");
+    QLabel *blendInfo = new QLabel("0.0 = Match target  |  1.0 = Keep source", blendGroup);
+    blendInfo->setStyleSheet("QLabel { color: #808080; font-size: 9pt; font-style: italic; }");
+    blendInfo->setWordWrap(true);
     blendLayout->addWidget(blendInfo);
 
     layout->addWidget(blendGroup);
 
-    QGroupBox *animGroup = new QGroupBox("Animation", morphPanel);
+    // Animation
+    QGroupBox *animGroup = new QGroupBox("Animation", morphContent);
     QVBoxLayout *animLayout = new QVBoxLayout(animGroup);
+    animLayout->setSpacing(10);
+    animLayout->setContentsMargins(10, 22, 10, 10);
 
     QHBoxLayout *frameLayout = new QHBoxLayout();
     frameLayout->addWidget(new QLabel("Frames:"));
     animateFramesSpinBox = new QSpinBox(animGroup);
     animateFramesSpinBox->setRange(2, 100);
     animateFramesSpinBox->setValue(30);
-    frameLayout->addWidget(animateFramesSpinBox);
+    frameLayout->addWidget(animateFramesSpinBox, 1);
     animLayout->addLayout(frameLayout);
 
     btnMorphAnimated = new QPushButton("Create Animated GIF", animGroup);
-    btnMorphAnimated->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
+    btnMorphAnimated->setStyleSheet("QPushButton { background-color: #2563EB; } QPushButton:hover { background-color: #3B82F6; }");
     connect(btnMorphAnimated, &QPushButton::clicked, this, &MainWindow::onMorphAnimated);
     animLayout->addWidget(btnMorphAnimated);
 
     layout->addWidget(animGroup);
 
-    btnMorph = new QPushButton("Apply Morph", morphPanel);
-    btnMorph->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; padding: 10px; }");
+    // Main Morph Button
+    btnMorph = new QPushButton("Apply Morph", morphContent);
+    btnMorph->setStyleSheet("QPushButton { background-color: #2563EB; font-weight: 600; padding: 16px; font-size: 11pt; } QPushButton:hover { background-color: #3B82F6; }");
     connect(btnMorph, &QPushButton::clicked, this, &MainWindow::onMorph);
     layout->addWidget(btnMorph);
 
     layout->addStretch();
 
-    QSplitter *mainSplitter = qobject_cast<QSplitter*>(
-        centralWidget()->layout()->itemAt(1)->widget());
-    if (mainSplitter) {
-        mainSplitter->addWidget(morphPanel);
+    morphScroll->setWidget(morphContent);
+
+    QVBoxLayout *morphPanelLayout = new QVBoxLayout(morphPanel);
+    morphPanelLayout->setContentsMargins(0, 0, 0, 0);
+    morphPanelLayout->addWidget(morphScroll);
+
+    QTabWidget *tabWidget = centralWidget()->findChild<QTabWidget*>();
+    if (tabWidget) {
+        tabWidget->addTab(morphPanel, "Morph");
     }
 }
 
@@ -417,7 +778,7 @@ void MainWindow::onLoadImage()
             currentFilePath = fileName;
 
             updateImageDisplay();
-            updateStatusBar("Image loaded: " + fileName);
+            updateStatusBar(" Image loaded: " + fileName);
         } catch (const std::exception &e) {
             QMessageBox::critical(this, "Error",
                                   QString("Failed to load image: %1").arg(e.what()));
@@ -438,7 +799,7 @@ void MainWindow::onSaveImage()
     if (!fileName.isEmpty()) {
         try {
             currentImage->saveImage(fileName.toStdString().c_str());
-            updateStatusBar("Image saved: " + fileName);
+            updateStatusBar(" Image saved: " + fileName);
         } catch (const std::exception &e) {
             QMessageBox::critical(this, "Error",
                                   QString("Failed to save image: %1").arg(e.what()));
@@ -459,8 +820,10 @@ void MainWindow::onLoadTargetImage()
             QPixmap pixmap = imageToPixmap(*targetImage);
             targetImageLabel->setPixmap(pixmap.scaled(
                 targetImageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            targetImageLabel->setStyleSheet(
+                "QLabel { border: 2px solid #7c3aed; background: #252525; border-radius: 6px; }");
 
-            updateStatusBar("Target image loaded: " + fileName);
+            updateStatusBar(" Target image loaded: " + fileName);
         } catch (const std::exception &e) {
             QMessageBox::critical(this, "Error",
                                   QString("Failed to load target image: %1").arg(e.what()));
@@ -481,8 +844,10 @@ void MainWindow::onLoadWeightsImage()
             QPixmap pixmap = imageToPixmap(*weightsImage);
             weightsImageLabel->setPixmap(pixmap.scaled(
                 weightsImageLabel->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            weightsImageLabel->setStyleSheet(
+                "QLabel { border: 2px solid #6366f1; background: #252525; border-radius: 6px; }");
 
-            updateStatusBar("Weights image loaded: " + fileName);
+            updateStatusBar(" Weights image loaded: " + fileName);
         } catch (const std::exception &e) {
             QMessageBox::critical(this, "Error",
                                   QString("Failed to load weights image: %1").arg(e.what()));
@@ -499,7 +864,7 @@ void MainWindow::onGrayscale()
 
     grayscale(*currentImage);
     updateImageDisplay();
-    updateStatusBar("Grayscale filter applied");
+    updateStatusBar(" Grayscale filter applied");
 }
 
 void MainWindow::onBlackAndWhite()
@@ -511,7 +876,7 @@ void MainWindow::onBlackAndWhite()
 
     bnw(*currentImage);
     updateImageDisplay();
-    updateStatusBar("Black & White filter applied");
+    updateStatusBar(" Black & White filter applied");
 }
 
 void MainWindow::onInvert()
@@ -523,7 +888,7 @@ void MainWindow::onInvert()
 
     invert(*currentImage);
     updateImageDisplay();
-    updateStatusBar("Invert filter applied");
+    updateStatusBar(" Invert filter applied");
 }
 
 void MainWindow::onReflect()
@@ -535,7 +900,7 @@ void MainWindow::onReflect()
 
     reflect(*currentImage);
     updateImageDisplay();
-    updateStatusBar("Reflect filter applied");
+    updateStatusBar(" Reflect filter applied");
 }
 
 void MainWindow::onRotate()
@@ -548,7 +913,7 @@ void MainWindow::onRotate()
     int degrees = rotateSpinBox->value();
     rotate(*currentImage, degrees);
     updateImageDisplay();
-    updateStatusBar(QString("Rotated %1 degrees").arg(degrees));
+    updateStatusBar(QString(" Rotated %1 degrees").arg(degrees));
 }
 
 void MainWindow::onLighten()
@@ -561,7 +926,7 @@ void MainWindow::onLighten()
     int percent = lightenSpinBox->value();
     dnl(*currentImage, percent);
     updateImageDisplay();
-    updateStatusBar(QString("Lightened by %1%").arg(percent));
+    updateStatusBar(QString(" Lightened by %1%").arg(percent));
 }
 
 void MainWindow::onDarken()
@@ -574,7 +939,7 @@ void MainWindow::onDarken()
     int percent = darkenSpinBox->value();
     dnl(*currentImage, -percent);
     updateImageDisplay();
-    updateStatusBar(QString("Darkened by %1%").arg(percent));
+    updateStatusBar(QString(" Darkened by %1%").arg(percent));
 }
 
 void MainWindow::onCrop()
@@ -591,7 +956,7 @@ void MainWindow::onCrop()
 
     if (crop(*currentImage, x, y, w, h)) {
         updateImageDisplay();
-        updateStatusBar(QString("Cropped to %1x%2 at (%3,%4)").arg(w).arg(h).arg(x).arg(y));
+        updateStatusBar(QString(" Cropped to %1x%2 at (%3,%4)").arg(w).arg(h).arg(x).arg(y));
     } else {
         QMessageBox::warning(this, "Error", "Crop failed - check parameters");
     }
@@ -655,7 +1020,7 @@ void MainWindow::onResize()
     try {
         *currentImage = resizeImageInMemory(*currentImage, newWidth, newHeight);
         updateImageDisplay();
-        updateStatusBar(QString("Resized to %1x%2").arg(newWidth).arg(newHeight));
+        updateStatusBar(QString(" Resized to %1x%2").arg(newWidth).arg(newHeight));
     } catch (const std::exception &e) {
         QMessageBox::critical(this, "Error",
                               QString("Resize failed: %1").arg(e.what()));
@@ -683,7 +1048,7 @@ void MainWindow::onMerge()
     *currentImage = output;
 
     updateImageDisplay();
-    updateStatusBar(QString("Merged with alpha=%1, mode=%2").arg(alpha).arg(mode));
+    updateStatusBar(QString(" Merged with alpha=%1, mode=%2").arg(alpha).arg(mode));
 }
 
 void MainWindow::onMorph()
@@ -712,19 +1077,19 @@ void MainWindow::onMorph()
     double blendFactor = blendFactorSpinBox->value();
 
     progressBar->setVisible(true);
-    progressBar->setRange(0, 0); // Indeterminate
-    updateStatusBar("Morphing in progress...");
+    progressBar->setRange(0, 0);
+    updateStatusBar("⚙ Morphing in progress...");
 
     QApplication::processEvents();
 
     try {
         morph(*currentImage, *targetImage, *weightsImage, blendFactor);
         updateImageDisplay();
-        updateStatusBar("Morph completed successfully");
+        updateStatusBar(" Morph completed successfully");
     } catch (const std::exception &e) {
         QMessageBox::critical(this, "Error",
                               QString("Morph failed: %1").arg(e.what()));
-        updateStatusBar("Morph failed");
+        updateStatusBar(" Morph failed");
     }
 
     progressBar->setVisible(false);
@@ -765,14 +1130,14 @@ void MainWindow::onMorphAnimated()
 
     progressBar->setVisible(true);
     progressBar->setRange(0, 0);
-    updateStatusBar("Creating animated GIF...");
+    updateStatusBar("⚙ Creating animated GIF...");
 
     QApplication::processEvents();
 
     try {
         morphAnimated(*currentImage, *targetImage, *weightsImage,
                       fileName.toStdString(), frames, blendFactor);
-        updateStatusBar("Animated GIF saved: " + fileName);
+        updateStatusBar(" Animated GIF saved: " + fileName);
         QMessageBox::information(this, "Success",
                                  "Animated GIF created successfully!\n" + fileName);
     } catch (const std::exception &e) {
@@ -813,6 +1178,11 @@ void MainWindow::updateImageDisplay()
     QPixmap scaled = pixmap.scaled(labelSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
     imageLabel->setPixmap(scaled);
+    imageLabel->setStyleSheet(
+        "QLabel { "
+        "background-color: #1e1e1e; "
+        "border: none; "
+        "}");
     imageLabel->resize(scaled.size());
 }
 
