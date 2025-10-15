@@ -1,0 +1,2 @@
+set(__QT_DEPLOY_TARGET_ImageProcessingStudio_FILE /home/shade/codingProjects/fcai/ImageProcessingStudio/build/Desktop-Debug/ImageProcessingStudio)
+set(__QT_DEPLOY_TARGET_ImageProcessingStudio_TYPE EXECUTABLE)
