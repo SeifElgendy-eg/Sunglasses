@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "Image_Class.h"
+#include "CanvasWidget.h"
 #include <QMenuBar>
 #include <QToolBar>
 #include <QVBoxLayout>
@@ -16,6 +17,7 @@
 #include <QStackedWidget>
 #include <QTabWidget>
 #include <QScreen>
+#include <QSpinBox>
 
 extern void grayscale(Image &image);
 extern void bnw(Image &image);
@@ -33,8 +35,11 @@ extern void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, d
 extern void morphAnimated(Image &sourceImage, Image &targetImage, Image &weightsImage,
                           const std::string &outputPath, int frameCount, double blendFactor);
 
+// Forward declare the conversion function from CanvasWidget
+extern QImage imageToQImage(const Image &img);
+
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent), canvas(nullptr)
 {
     setupUI();
     applyModernStyle();
@@ -60,6 +65,7 @@ void MainWindow::setupUI()
     createCentralWidget();
     createFilterPanel();
     createMorphPanel();
+    createMergePanel();
 }
 
 void MainWindow::applyModernStyle()
@@ -292,6 +298,14 @@ void MainWindow::createMenuBar()
     resetAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_R));
     connect(resetAction, &QAction::triggered, this, &MainWindow::onResetImage);
 
+    QAction *undoAction = editMenu->addAction("&Undo");
+    undoAction->setShortcut(QKeySequence::Undo);
+    connect(undoAction, &QAction::triggered, this, &MainWindow::onUndo);
+
+    QAction *redoAction = editMenu->addAction("&Redo");
+    redoAction->setShortcut(QKeySequence::Redo);
+    connect(redoAction, &QAction::triggered, this, &MainWindow::onRedo);
+
     QMenu *filtersMenu = menuBar->addMenu("&Filters");
 
     QAction *grayscaleAction = filtersMenu->addAction("&Grayscale");
@@ -361,6 +375,18 @@ void MainWindow::createToolBar()
     connect(btnReset, &QPushButton::clicked, this, &MainWindow::onResetImage);
     toolBar->addWidget(btnReset);
 
+    toolBar->addSeparator();
+
+    QPushButton *btnSelectTool = new QPushButton("Select", this);
+    btnSelectTool->setMinimumSize(110, 40);
+    connect(btnSelectTool, &QPushButton::clicked, this, &MainWindow::onSelectTool);
+    toolBar->addWidget(btnSelectTool);
+
+    QPushButton *btnResizeTool = new QPushButton("Resize Tool", this);
+    btnResizeTool->setMinimumSize(110, 40);
+    connect(btnResizeTool, &QPushButton::clicked, this, &MainWindow::onResizeTool);
+    toolBar->addWidget(btnResizeTool);
+
     QWidget *spacer = new QWidget();
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     toolBar->addWidget(spacer);
@@ -381,22 +407,17 @@ void MainWindow::createCentralWidget()
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
-    imageLabel = new QLabel(this);
-    imageLabel->setAlignment(Qt::AlignCenter);
-    imageLabel->setStyleSheet(
-        "QLabel { "
+    canvas = new CanvasWidget(this);
+    canvas->setMinimumSize(600, 500);
+    canvas->setStyleSheet(
+        "QWidget { "
         "background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
         "stop:0 #1e1e1e, stop:1 #1a1a1a); "
         "border: none; "
-        "color: #808080; "
-        "font-size: 14pt; "
-        "font-weight: 400; "
         "}");
-    imageLabel->setMinimumSize(600, 500);
-    imageLabel->setText("No image loaded\n\nClick Open or drag an image to begin");
 
     scrollArea = new QScrollArea(this);
-    scrollArea->setWidget(imageLabel);
+    scrollArea->setWidget(canvas);
     scrollArea->setWidgetResizable(true);
     scrollArea->setMinimumWidth(600);
 
@@ -423,6 +444,69 @@ void MainWindow::createFilterPanel()
     QVBoxLayout *layout = new QVBoxLayout(filterContent);
     layout->setSpacing(12);
     layout->setContentsMargins(12, 12, 12, 12);
+
+    // Canvas Filters Group
+    QGroupBox *canvasGroup = new QGroupBox("Reflection", filterContent);
+    QGridLayout *canvasLayout = new QGridLayout(canvasGroup);
+    canvasLayout->setSpacing(8);
+    canvasLayout->setContentsMargins(10, 22, 10, 10);
+
+    btnCanvasVertReflect = new QPushButton("V. Reflect", canvasGroup);
+    connect(btnCanvasVertReflect, &QPushButton::clicked, this, &MainWindow::onCanvasVerticalReflection);
+    canvasLayout->addWidget(btnCanvasVertReflect, 1, 0);
+
+    btnCanvasHorzReflect = new QPushButton("H. Reflect", canvasGroup);
+    connect(btnCanvasHorzReflect, &QPushButton::clicked, this, &MainWindow::onCanvasHorizontalReflection);
+    canvasLayout->addWidget(btnCanvasHorzReflect, 1, 1);
+
+    layout->addWidget(canvasGroup);
+
+    // Canvas Color Filters
+    QGroupBox *colorGroup = new QGroupBox("Color Filters", filterContent);
+    QGridLayout *colorLayout = new QGridLayout(colorGroup);
+    colorLayout->setSpacing(8);
+    colorLayout->setContentsMargins(10, 22, 10, 10);
+
+    colorLayout->addWidget(new QLabel("Intensity:"), 0, 0);
+    canvasColorIntensity = new QSpinBox(colorGroup);
+    canvasColorIntensity->setRange(0, 255);
+    canvasColorIntensity->setValue(50);
+    colorLayout->addWidget(canvasColorIntensity, 0, 1);
+
+    btnCanvasYellow = new QPushButton("Yellow", colorGroup);
+    connect(btnCanvasYellow, &QPushButton::clicked, this, &MainWindow::onCanvasYellowFilter);
+    colorLayout->addWidget(btnCanvasYellow, 1, 0);
+
+    btnCanvasPurple = new QPushButton("Purple", colorGroup);
+    connect(btnCanvasPurple, &QPushButton::clicked, this, &MainWindow::onCanvasPurpleFilter);
+    colorLayout->addWidget(btnCanvasPurple, 1, 1);
+
+    btnCanvasInfraRed = new QPushButton("Infrared", colorGroup);
+    connect(btnCanvasInfraRed, &QPushButton::clicked, this, &MainWindow::onCanvasInfraRedFilter);
+    colorLayout->addWidget(btnCanvasInfraRed, 2, 0, 1, 2);
+
+    layout->addWidget(colorGroup);
+
+    // Canvas Undo/Redo
+    QGroupBox *canvasUndoGroup = new QGroupBox("History", filterContent);
+    QVBoxLayout *canvasUndoLayout = new QVBoxLayout(canvasUndoGroup);
+    canvasUndoLayout->setSpacing(8);
+    canvasUndoLayout->setContentsMargins(10, 22, 10, 10);
+
+    btnCanvasUndo = new QPushButton("Undo", canvasUndoGroup);
+    connect(btnCanvasUndo, &QPushButton::clicked, this, &MainWindow::onCanvasUndo);
+    canvasUndoLayout->addWidget(btnCanvasUndo);
+
+    btnCanvasRedo = new QPushButton("Redo", canvasUndoGroup);
+    connect(btnCanvasRedo, &QPushButton::clicked, this, &MainWindow::onCanvasRedo);
+    canvasUndoLayout->addWidget(btnCanvasRedo);
+
+    btnCanvasReset = new QPushButton("Reset", canvasUndoGroup);
+    btnCanvasReset->setStyleSheet("QPushButton { background-color: #dc2626; } QPushButton:hover { background-color: #ef4444; }");
+    connect(btnCanvasReset, &QPushButton::clicked, this, &MainWindow::onCanvasReset);
+    canvasUndoLayout->addWidget(btnCanvasReset);
+
+    layout->addWidget(canvasUndoGroup);
 
     // Basic Filters
     QGroupBox *basicGroup = new QGroupBox("Basic Filters", filterContent);
@@ -766,6 +850,199 @@ void MainWindow::createMorphPanel()
     }
 }
 
+void MainWindow::createMergePanel()
+{
+    mergePanel = new QGroupBox("Merge", this);
+
+    QScrollArea *mergeScroll = new QScrollArea();
+    mergeScroll->setWidgetResizable(true);
+    mergeScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    QWidget *mergeContent = new QWidget();
+    QVBoxLayout *layout = new QVBoxLayout(mergeContent);
+    layout->setSpacing(12);
+    layout->setContentsMargins(12, 12, 12, 12);
+
+    // Target Image Load
+    QGroupBox *targetGroup = new QGroupBox("Target Image (Image 2)", mergeContent);
+    QVBoxLayout *targetLayout = new QVBoxLayout(targetGroup);
+    targetLayout->setSpacing(10);
+    targetLayout->setContentsMargins(10, 22, 10, 10);
+
+    btnMergeTarget = new QPushButton("Load Target Image", targetGroup);
+    connect(btnMergeTarget, &QPushButton::clicked, this, &MainWindow::onLoadTargetMergeImage);
+    targetLayout->addWidget(btnMergeTarget);
+
+    targetMergeLabel = new QLabel("No image loaded", targetGroup);
+    targetMergeLabel->setAlignment(Qt::AlignCenter);
+    targetMergeLabel->setWordWrap(true);
+    targetMergeLabel->setMinimumHeight(100);
+    targetMergeLabel->setStyleSheet(
+        "QLabel { "
+        "border: 2px dashed #404040; "
+        "background: #1a1a1a; "
+        "color: #808080; "
+        "border-radius: 6px; "
+        "padding: 20px; }");
+    targetLayout->addWidget(targetMergeLabel);
+
+    layout->addWidget(targetGroup);
+
+    // Merge Controls
+    QGroupBox *controlsGroup = new QGroupBox("Blend Controls", mergeContent);
+    QVBoxLayout *controlsLayout = new QVBoxLayout(controlsGroup);
+    controlsLayout->setSpacing(10);
+    controlsLayout->setContentsMargins(10, 22, 10, 10);
+
+    // Alpha / Blend Factor
+    QHBoxLayout *alphaLayout = new QHBoxLayout();
+    alphaLayout->addWidget(new QLabel("Blend Factor:"));
+    mergeBlendFactorSpinBox = new QDoubleSpinBox(controlsGroup);
+    mergeBlendFactorSpinBox->setRange(0.0, 1.0);
+    mergeBlendFactorSpinBox->setSingleStep(0.01);
+    mergeBlendFactorSpinBox->setValue(0.5);
+    mergeBlendFactorSpinBox->setDecimals(2);
+    connect(mergeBlendFactorSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this, &MainWindow::onMergeBlendFactorChanged);
+    alphaLayout->addWidget(mergeBlendFactorSpinBox, 1);
+    controlsLayout->addLayout(alphaLayout);
+
+    QLabel *alphaInfo = new QLabel("0.0 = Only Image 2  |  1.0 = Only Image 1", controlsGroup);
+    alphaInfo->setStyleSheet("QLabel { color: #808080; font-size: 9pt; font-style: italic; }");
+    alphaInfo->setWordWrap(true);
+    controlsLayout->addWidget(alphaInfo);
+
+    // Merge Mode (Output Size)
+    QHBoxLayout *modeLayout = new QHBoxLayout();
+    modeLayout->addWidget(new QLabel("Output Size:"));
+    mergeModeComboBox = new QComboBox(controlsGroup);
+    mergeModeComboBox->addItem("Intersection (min)", QVariant('i'));
+    mergeModeComboBox->addItem("Image 1 (main)", QVariant('f'));
+    mergeModeComboBox->addItem("Image 2 (target)", QVariant('s'));
+    connect(mergeModeComboBox, &QComboBox::currentTextChanged,
+            this, &MainWindow::onMergeModeChanged);
+    modeLayout->addWidget(mergeModeComboBox, 1);
+    controlsLayout->addLayout(modeLayout);
+
+    layout->addWidget(controlsGroup);
+
+    // Apply Button
+    btnMerge = new QPushButton("Apply Merge", mergeContent);
+    connect(btnMerge, &QPushButton::clicked, this, &MainWindow::onMerge);
+    layout->addWidget(btnMerge);
+
+    layout->addStretch();
+
+    mergeScroll->setWidget(mergeContent);
+
+    QVBoxLayout *mergePanelLayout = new QVBoxLayout(mergePanel);
+    mergePanelLayout->setContentsMargins(0, 0, 0, 0);
+    mergePanelLayout->addWidget(mergeScroll);
+
+    QTabWidget *tabWidget = centralWidget()->findChild<QTabWidget*>();
+    if (tabWidget) {
+        tabWidget->addTab(mergePanel, "Merge");
+    }
+}
+
+// Canvas Widget Slot Methods
+void MainWindow::onSelectTool()
+{
+    if (canvas) {
+        canvas->setTool(CanvasWidget::ToolMode::Select);
+        updateStatusBar("Select tool activated - Click and drag to select area");
+    }
+}
+
+void MainWindow::onResizeTool()
+{
+    if (canvas) {
+        canvas->setTool(CanvasWidget::ToolMode::Resize);
+        updateStatusBar("Resize tool activated - Drag handles to resize image");
+    }
+}
+
+void MainWindow::onCanvasVerticalReflection()
+{
+    if (canvas) {
+        canvas->applyVeriticalReflection();
+        updateStatusBar("Vertical reflection applied to canvas");
+    }
+}
+
+void MainWindow::onCanvasHorizontalReflection()
+{
+    if (canvas) {
+        canvas->applyHorizontalReflection();
+        updateStatusBar("Horizontal reflection applied to canvas");
+    }
+}
+
+void MainWindow::onCanvasYellowFilter()
+{
+    if (canvas) {
+        canvas->applyYellowFilter(canvasColorIntensity->value());
+        updateStatusBar("Yellow filter applied to canvas");
+    }
+}
+
+void MainWindow::onCanvasPurpleFilter()
+{
+    if (canvas) {
+        canvas->applyPurpleFilter(canvasColorIntensity->value());
+        updateStatusBar("Purple filter applied to canvas");
+    }
+}
+
+void MainWindow::onCanvasInfraRedFilter()
+{
+    if (canvas) {
+        canvas->applyInfraRedFilter();
+        updateStatusBar("Infrared filter applied to canvas");
+    }
+}
+
+void MainWindow::onCanvasUndo()
+{
+    if (canvas) {
+        canvas->undo();
+        updateStatusBar("Undo applied");
+    }
+}
+
+void MainWindow::onCanvasRedo()
+{
+    if (canvas) {
+        canvas->redo();
+        updateStatusBar("Redo applied");
+    }
+}
+
+void MainWindow::onCanvasReset()
+{
+    if (canvas) {
+        canvas->resetImage();
+        updateStatusBar("Canvas reset to original");
+    }
+}
+
+void MainWindow::onUndo()
+{
+    if (canvas) {
+        canvas->undo();
+        updateStatusBar("Undo applied");
+    }
+}
+
+void MainWindow::onRedo()
+{
+    if (canvas) {
+        canvas->redo();
+        updateStatusBar("Redo applied");
+    }
+}
+
+// Image loading and display
 void MainWindow::onLoadImage()
 {
     QString fileName = QFileDialog::getOpenFileName(this, "Open Image",
@@ -777,8 +1054,12 @@ void MainWindow::onLoadImage()
             originalImage = std::make_unique<Image>(*currentImage);
             currentFilePath = fileName;
 
-            updateImageDisplay();
-            updateStatusBar(" Image loaded: " + fileName);
+            QImage qimg(fileName);
+            if (!qimg.isNull()) {
+                canvas->setImage(qimg);
+            }
+
+            updateStatusBar("Image loaded: " + fileName);
         } catch (const std::exception &e) {
             QMessageBox::critical(this, "Error",
                                   QString("Failed to load image: %1").arg(e.what()));
@@ -788,7 +1069,7 @@ void MainWindow::onLoadImage()
 
 void MainWindow::onSaveImage()
 {
-    if (!currentImage) {
+    if (!canvas || canvas->m_image.isNull()) {
         QMessageBox::warning(this, "Warning", "No image to save");
         return;
     }
@@ -798,8 +1079,13 @@ void MainWindow::onSaveImage()
 
     if (!fileName.isEmpty()) {
         try {
-            currentImage->saveImage(fileName.toStdString().c_str());
-            updateStatusBar(" Image saved: " + fileName);
+            if (canvas->m_image.save(fileName)) {
+                // Update currentImage to match what was saved
+                *currentImage = Image(fileName.toStdString().c_str());
+                updateStatusBar("Image saved: " + fileName);
+            } else {
+                QMessageBox::critical(this, "Error", "Failed to save image");
+            }
         } catch (const std::exception &e) {
             QMessageBox::critical(this, "Error",
                                   QString("Failed to save image: %1").arg(e.what()));
@@ -807,6 +1093,194 @@ void MainWindow::onSaveImage()
     }
 }
 
+void MainWindow::onResetImage()
+{
+    if (!originalImage) {
+        QMessageBox::warning(this, "Warning", "No original image to reset to");
+        return;
+    }
+
+    if (canvas) {
+        canvas->resetImage();
+        *currentImage = *originalImage;
+        updateStatusBar("Image reset to original");
+    }
+}
+
+// Basic filter operations
+void MainWindow::onGrayscale()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    grayscale(*currentImage);
+    canvas->setImage(imageToQImage(*currentImage));
+    updateStatusBar("Grayscale filter applied");
+}
+
+void MainWindow::onBlackAndWhite()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    bnw(*currentImage);
+    canvas->setImage(imageToQImage(*currentImage));
+    updateStatusBar("Black & White filter applied");
+}
+
+void MainWindow::onInvert()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    invert(*currentImage);
+    canvas->setImage(imageToQImage(*currentImage));
+    updateStatusBar("Invert filter applied");
+}
+
+void MainWindow::onReflect()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    reflect(*currentImage);
+    canvas->setImage(imageToQImage(*currentImage));
+    updateStatusBar("Reflect filter applied");
+}
+
+void MainWindow::onRotate()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    int degrees = rotateSpinBox->value();
+    rotate(*currentImage, degrees);
+    canvas->setImage(imageToQImage(*currentImage));
+    updateStatusBar(QString("Rotated %1 degrees").arg(degrees));
+}
+
+void MainWindow::onLighten()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    int percent = lightenSpinBox->value();
+    dnl(*currentImage, percent);
+    canvas->setImage(imageToQImage(*currentImage));
+    updateStatusBar(QString("Lightened by %1%").arg(percent));
+}
+
+void MainWindow::onDarken()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    int percent = darkenSpinBox->value();
+    dnl(*currentImage, -percent);
+    canvas->setImage(imageToQImage(*currentImage));
+    updateStatusBar(QString("Darkened by %1%").arg(percent));
+}
+
+void MainWindow::onCrop()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    int x = cropXSpinBox->value();
+    int y = cropYSpinBox->value();
+    int w = cropWidthSpinBox->value();
+    int h = cropHeightSpinBox->value();
+
+    if (crop(*currentImage, x, y, w, h)) {
+        canvas->setImage(imageToQImage(*currentImage));
+        updateStatusBar(QString("Cropped to %1x%2 at (%3,%4)").arg(w).arg(h).arg(x).arg(y));
+    } else {
+        QMessageBox::warning(this, "Error", "Crop failed - check parameters");
+    }
+}
+
+void MainWindow::onFrame()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    int thickness = frameThicknessSpinBox->value();
+    int r = frameRSpinBox->value();
+    int g = frameGSpinBox->value();
+    int b = frameBSpinBox->value();
+
+    if (frame(*currentImage, thickness, r, g, b, 's')) {
+        canvas->setImage(imageToQImage(*currentImage));
+        updateStatusBar(QString("Frame added: %1px RGB(%2,%3,%4)").arg(thickness).arg(r).arg(g).arg(b));
+    } else {
+        QMessageBox::warning(this, "Error", "Frame failed - check parameters");
+    }
+}
+
+void MainWindow::onEdges()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    edges(*currentImage);
+    canvas->setImage(imageToQImage(*currentImage));
+    updateStatusBar("Edge detection applied");
+}
+
+void MainWindow::onBlur()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    int kernelSize = blurSpinBox->value();
+    blur(*currentImage, kernelSize);
+    canvas->setImage(imageToQImage(*currentImage));
+    updateStatusBar(QString("Blur applied with kernel size %1").arg(kernelSize));
+}
+
+void MainWindow::onResize()
+{
+    if (!currentImage) {
+        QMessageBox::warning(this, "Warning", "No image loaded");
+        return;
+    }
+
+    int newWidth = resizeWidthSpinBox->value();
+    int newHeight = resizeHeightSpinBox->value();
+
+    try {
+        *currentImage = resizeImageInMemory(*currentImage, newWidth, newHeight);
+        canvas->setImage(imageToQImage(*currentImage));
+        updateStatusBar(QString("Resized to %1x%2").arg(newWidth).arg(newHeight));
+    } catch (const std::exception &e) {
+        QMessageBox::critical(this, "Error",
+                              QString("Resize failed: %1").arg(e.what()));
+    }
+}
+
+// Morph operations
 void MainWindow::onLoadTargetImage()
 {
     QString fileName = QFileDialog::getOpenFileName(this, "Open Target Image",
@@ -823,7 +1297,7 @@ void MainWindow::onLoadTargetImage()
             targetImageLabel->setStyleSheet(
                 "QLabel { border: 2px solid #7c3aed; background: #252525; border-radius: 6px; }");
 
-            updateStatusBar(" Target image loaded: " + fileName);
+            updateStatusBar("Target image loaded: " + fileName);
         } catch (const std::exception &e) {
             QMessageBox::critical(this, "Error",
                                   QString("Failed to load target image: %1").arg(e.what()));
@@ -847,208 +1321,12 @@ void MainWindow::onLoadWeightsImage()
             weightsImageLabel->setStyleSheet(
                 "QLabel { border: 2px solid #6366f1; background: #252525; border-radius: 6px; }");
 
-            updateStatusBar(" Weights image loaded: " + fileName);
+            updateStatusBar("Weights image loaded: " + fileName);
         } catch (const std::exception &e) {
             QMessageBox::critical(this, "Error",
                                   QString("Failed to load weights image: %1").arg(e.what()));
         }
     }
-}
-
-void MainWindow::onGrayscale()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    grayscale(*currentImage);
-    updateImageDisplay();
-    updateStatusBar(" Grayscale filter applied");
-}
-
-void MainWindow::onBlackAndWhite()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    bnw(*currentImage);
-    updateImageDisplay();
-    updateStatusBar(" Black & White filter applied");
-}
-
-void MainWindow::onInvert()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    invert(*currentImage);
-    updateImageDisplay();
-    updateStatusBar(" Invert filter applied");
-}
-
-void MainWindow::onReflect()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    reflect(*currentImage);
-    updateImageDisplay();
-    updateStatusBar(" Reflect filter applied");
-}
-
-void MainWindow::onRotate()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    int degrees = rotateSpinBox->value();
-    rotate(*currentImage, degrees);
-    updateImageDisplay();
-    updateStatusBar(QString(" Rotated %1 degrees").arg(degrees));
-}
-
-void MainWindow::onLighten()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    int percent = lightenSpinBox->value();
-    dnl(*currentImage, percent);
-    updateImageDisplay();
-    updateStatusBar(QString(" Lightened by %1%").arg(percent));
-}
-
-void MainWindow::onDarken()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    int percent = darkenSpinBox->value();
-    dnl(*currentImage, -percent);
-    updateImageDisplay();
-    updateStatusBar(QString(" Darkened by %1%").arg(percent));
-}
-
-void MainWindow::onCrop()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    int x = cropXSpinBox->value();
-    int y = cropYSpinBox->value();
-    int w = cropWidthSpinBox->value();
-    int h = cropHeightSpinBox->value();
-
-    if (crop(*currentImage, x, y, w, h)) {
-        updateImageDisplay();
-        updateStatusBar(QString(" Cropped to %1x%2 at (%3,%4)").arg(w).arg(h).arg(x).arg(y));
-    } else {
-        QMessageBox::warning(this, "Error", "Crop failed - check parameters");
-    }
-}
-
-void MainWindow::onFrame()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    int thickness = frameThicknessSpinBox->value();
-    int r = frameRSpinBox->value();
-    int g = frameGSpinBox->value();
-    int b = frameBSpinBox->value();
-
-    if (frame(*currentImage, thickness, r, g, b, 's')) {
-        updateImageDisplay();
-        updateStatusBar(QString("Frame added: %1px RGB(%2,%3,%4)").arg(thickness).arg(r).arg(g).arg(b));
-    } else {
-        QMessageBox::warning(this, "Error", "Frame failed - check parameters");
-    }
-}
-
-void MainWindow::onEdges()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    edges(*currentImage);
-    updateImageDisplay();
-    updateStatusBar("Edge detection applied");
-}
-
-void MainWindow::onBlur()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    int kernelSize = blurSpinBox->value();
-    blur(*currentImage, kernelSize);
-    updateImageDisplay();
-    updateStatusBar(QString("Blur applied with kernel size %1").arg(kernelSize));
-}
-
-void MainWindow::onResize()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    int newWidth = resizeWidthSpinBox->value();
-    int newHeight = resizeHeightSpinBox->value();
-
-    try {
-        *currentImage = resizeImageInMemory(*currentImage, newWidth, newHeight);
-        updateImageDisplay();
-        updateStatusBar(QString(" Resized to %1x%2").arg(newWidth).arg(newHeight));
-    } catch (const std::exception &e) {
-        QMessageBox::critical(this, "Error",
-                              QString("Resize failed: %1").arg(e.what()));
-    }
-}
-
-void MainWindow::onMerge()
-{
-    if (!currentImage) {
-        QMessageBox::warning(this, "Warning", "No image loaded");
-        return;
-    }
-
-    if (!mergeImage) {
-        QMessageBox::warning(this, "Warning", "No merge image loaded");
-        return;
-    }
-
-    float alpha = mergeAlphaSpinBox->value();
-    QString mode = mergeModeCombo->currentText();
-    char modeChar = mode[0].toLatin1();
-
-    Image output;
-    merge(*currentImage, *mergeImage, output, alpha, modeChar);
-    *currentImage = output;
-
-    updateImageDisplay();
-    updateStatusBar(QString(" Merged with alpha=%1, mode=%2").arg(alpha).arg(mode));
 }
 
 void MainWindow::onMorph()
@@ -1067,9 +1345,9 @@ void MainWindow::onMorph()
         weightsImage = std::make_unique<Image>(currentImage->width, currentImage->height);
         for (int row = 0; row < weightsImage->height; row++) {
             for (int col = 0; col < weightsImage->width; col++) {
-                (*weightsImage)(col, row, 0) = 255;
-                (*weightsImage)(col, row, 1) = 255;
-                (*weightsImage)(col, row, 2) = 255;
+                weightsImage->setPixel(col, row, 0, 255);
+                weightsImage->setPixel(col, row, 1, 255);
+                weightsImage->setPixel(col, row, 2, 255);
             }
         }
     }
@@ -1084,12 +1362,12 @@ void MainWindow::onMorph()
 
     try {
         morph(*currentImage, *targetImage, *weightsImage, blendFactor);
-        updateImageDisplay();
-        updateStatusBar(" Morph completed successfully");
+        canvas->setImage(imageToQImage(*currentImage));
+        updateStatusBar("Morph completed successfully");
     } catch (const std::exception &e) {
         QMessageBox::critical(this, "Error",
                               QString("Morph failed: %1").arg(e.what()));
-        updateStatusBar(" Morph failed");
+        updateStatusBar("Morph failed");
     }
 
     progressBar->setVisible(false);
@@ -1118,9 +1396,9 @@ void MainWindow::onMorphAnimated()
         weightsImage = std::make_unique<Image>(currentImage->width, currentImage->height);
         for (int row = 0; row < weightsImage->height; row++) {
             for (int col = 0; col < weightsImage->width; col++) {
-                (*weightsImage)(col, row, 0) = 255;
-                (*weightsImage)(col, row, 1) = 255;
-                (*weightsImage)(col, row, 2) = 255;
+                weightsImage->setPixel(col, row, 0, 255);
+                weightsImage->setPixel(col, row, 1, 255);
+                weightsImage->setPixel(col, row, 2, 255);
             }
         }
     }
@@ -1135,9 +1413,11 @@ void MainWindow::onMorphAnimated()
     QApplication::processEvents();
 
     try {
-        morphAnimated(*currentImage, *targetImage, *weightsImage,
+        // Create a copy of currentImage for animation
+        Image sourceCopy = *currentImage;
+        morphAnimated(sourceCopy, *targetImage, *weightsImage,
                       fileName.toStdString(), frames, blendFactor);
-        updateStatusBar(" Animated GIF saved: " + fileName);
+        updateStatusBar("Animated GIF saved: " + fileName);
         QMessageBox::information(this, "Success",
                                  "Animated GIF created successfully!\n" + fileName);
     } catch (const std::exception &e) {
@@ -1154,36 +1434,119 @@ void MainWindow::onBlendFactorChanged(double value)
     updateStatusBar(QString("Blend factor: %1").arg(value, 0, 'f', 2));
 }
 
-void MainWindow::onResetImage()
+// Merge functions
+void MainWindow::onLoadTargetMergeImage()
 {
-    if (!originalImage) {
-        QMessageBox::warning(this, "Warning", "No original image to reset to");
+    QString fileName = QFileDialog::getOpenFileName(this, "Load Target Merge Image", "",
+                                                    "Image Files (*.png *.jpg *.jpeg *.bmp)");
+    if (!fileName.isEmpty())
+    {
+        try
+        {
+            updateStatusBar("Loading target merge image...");
+            targetMergeImage = std::make_unique<Image>(fileName.toStdString().c_str());
+
+            QFileInfo fileInfo(fileName);
+            targetMergeLabel->setText(fileInfo.fileName());
+            targetMergeLabel->setStyleSheet(
+                "QLabel { "
+                "border: 2px dashed #404040; "
+                "background: #1a1a1a; "
+                "color: #e8e8e8; "
+                "border-radius: 6px; "
+                "padding: 20px; }");
+            updateStatusBar("Target merge image loaded: " + fileName);
+        }
+        catch (const std::exception &e)
+        {
+            QMessageBox::critical(this, "Error",
+                                  QString("Failed to load target image: %1").arg(e.what()));
+            targetMergeImage.reset();
+            targetMergeLabel->setText("No image loaded");
+            targetMergeLabel->setStyleSheet(
+                "QLabel { "
+                "border: 2px dashed #404040; "
+                "background: #1a1a1a; "
+                "color: #808080; "
+                "border-radius: 6px; "
+                "padding: 20px; }");
+            updateStatusBar("Failed to load target merge image");
+        }
+    }
+}
+
+void MainWindow::onMerge()
+{
+    if (!currentImage)
+    {
+        QMessageBox::warning(this, "Warning", "Please load a main image first.");
         return;
     }
 
-    currentImage = std::make_unique<Image>(*originalImage);
-    updateImageDisplay();
-    updateStatusBar("Image reset to original");
+    if (!targetMergeImage)
+    {
+        QMessageBox::warning(this, "Warning", "Please load a target merge image first.");
+        return;
+    }
+
+    try
+    {
+        updateStatusBar("Applying Merge...");
+
+        // Create copies to pass to the merge function
+        Image image1 = *currentImage;
+        Image image2 = *targetMergeImage;
+
+        float alpha = static_cast<float>(mergeBlendFactorSpinBox->value());
+        char mode = mergeModeComboBox->currentData().toChar().toLatin1();
+
+        Image outputImage;
+
+        // Call the merge function
+        merge(image1, image2, outputImage, alpha, mode);
+
+        // Update currentImage with the merged result
+        *currentImage = outputImage;
+
+        // Update the canvas display
+        canvas->setImage(imageToQImage(*currentImage));
+
+        updateStatusBar("Merge applied successfully.");
+    }
+    catch (const std::exception &e)
+    {
+        QMessageBox::critical(this, "Error", QString("Merge operation failed: %1").arg(e.what()));
+        updateStatusBar("Merge failed");
+    }
 }
 
+void MainWindow::onMergeBlendFactorChanged(double value)
+{
+    updateStatusBar(QString("Merge Blend Factor: %1 (1.0=Image1, 0.0=Image2)").arg(value, 0, 'f', 2));
+}
+
+void MainWindow::onMergeModeChanged(const QString &text)
+{
+    Q_UNUSED(text);
+    char mode = mergeModeComboBox->currentData().toChar().toLatin1();
+    QString modeStr;
+    if (mode == 'i') modeStr = "Intersection (min size)";
+    else if (mode == 'f') modeStr = "Image 1 (main image)";
+    else if (mode == 's') modeStr = "Image 2 (target image)";
+
+    updateStatusBar(QString("Merge Output Size Mode: %1").arg(modeStr));
+}
+
+// Utility functions
 void MainWindow::updateImageDisplay()
 {
     if (!currentImage) {
         return;
     }
 
-    QPixmap pixmap = imageToPixmap(*currentImage);
-
-    QSize labelSize = scrollArea->viewport()->size();
-    QPixmap scaled = pixmap.scaled(labelSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-
-    imageLabel->setPixmap(scaled);
-    imageLabel->setStyleSheet(
-        "QLabel { "
-        "background-color: #1e1e1e; "
-        "border: none; "
-        "}");
-    imageLabel->resize(scaled.size());
+    if (canvas) {
+        canvas->setImage(imageToQImage(*currentImage));
+    }
 }
 
 void MainWindow::updateStatusBar(const QString &message)
@@ -1197,9 +1560,9 @@ QPixmap MainWindow::imageToPixmap(const Image &img)
 
     for (int row = 0; row < img.height; row++) {
         for (int col = 0; col < img.width; col++) {
-            unsigned char r = img(col, row, 0);
-            unsigned char g = img(col, row, 1);
-            unsigned char b = img(col, row, 2);
+            unsigned char r = img.getPixel(col, row, 0);
+            unsigned char g = img.getPixel(col, row, 1);
+            unsigned char b = img.getPixel(col, row, 2);
             qImg.setPixel(col, row, qRgb(r, g, b));
         }
     }

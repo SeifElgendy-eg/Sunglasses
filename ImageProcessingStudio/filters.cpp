@@ -131,6 +131,38 @@ void reflect(Image &image)
     }
 }
 
+void reflectH(Image &image)
+{
+    for (int row = 0; row < image.height; row++)
+    {
+        for (int col = 0; col < image.width / 2; col++)
+        {
+            for (int k = 0; k < 3; k++)
+            {
+                unsigned int temp = image(col, row, k);
+                image(col, row, k) = image(image.width - 1 - col, row, k);
+                image(image.width - 1 - col, row, k) = temp;
+            }
+        }
+    }
+}
+
+void reflectV(Image &image)
+{
+    for (int row = 0; row < image.height / 2; row++)
+    {
+        for (int col = 0; col < image.width; col++)
+        {
+            for (int k = 0; k < 3; k++)
+            {
+                unsigned int temp = image(col, row, k);
+                image(col, row, k) = image(col, image.height - 1 - row, k);
+                image(col, image.height - 1 - row, k) = temp;
+            }
+        }
+    }
+}
+
 void rotate(Image &image, int degrees)
 {
     degrees = ((degrees % 360) + 360) % 360;
@@ -363,6 +395,61 @@ Image resizeImageInMemory(Image &image, int newWidth, int newHeight)
     }
     return resizedImage;
 }
+
+// ============================================================================
+// ADDITIONAL FILTERS (from main.cpp)
+// ============================================================================
+
+void purpleFilter(Image &image, const int intensity)
+{
+    for (int i = 0; i < image.width; i++)
+    {
+        for (int j = 0; j < image.height; j++)
+        {
+            int new_r = image(i, j, 0) + intensity;
+            int new_g = image(i, j, 1) - intensity;
+            int new_b = image(i, j, 2) + intensity;
+
+            image(i, j, 0) = std::clamp(new_r, 0, 255);
+            image(i, j, 1) = std::clamp(new_g, 0, 255);
+            image(i, j, 2) = std::clamp(new_b, 0, 255);
+        }
+    }
+}
+
+void yellowFilter(Image &image, const int intensity)
+{
+    for (int i = 0; i < image.width; i++)
+    {
+        for (int j = 0; j < image.height; j++)
+        {
+            int new_r = image(i, j, 0) + intensity;
+            int new_g = image(i, j, 1) + intensity;
+            int new_b = image(i, j, 2) - intensity;
+
+            image(i, j, 0) = std::clamp(new_r, 0, 255);
+            image(i, j, 1) = std::clamp(new_g, 0, 255);
+            image(i, j, 2) = std::clamp(new_b, 0, 255);
+        }
+    }
+}
+
+void redscale(Image &image)
+{
+    grayscale(image);
+    invert(image);
+    for (int row = 0; row < image.height; row++)
+    {
+        for (int col = 0; col < image.width; col++)
+        {
+            image(col, row, 0) = 255;
+        }
+    }
+}
+
+// ============================================================================
+// MORPH FUNCTIONS
+// ============================================================================
 
 void morphOptimized(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor,
                     std::vector<int> &pixelMapping)

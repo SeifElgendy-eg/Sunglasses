@@ -4,23 +4,19 @@
 #include <QMainWindow>
 #include <QLabel>
 #include <QPushButton>
-#include <QSlider>
 #include <QSpinBox>
 #include <QDoubleSpinBox>
-#include <QComboBox>
-#include <QGroupBox>
 #include <QScrollArea>
+#include <QGroupBox>
 #include <QProgressBar>
+#include <QComboBox>
 #include <QStatusBar>
-#include "Image_Class.h"
+#include <QString>
 #include <memory>
+#include "CanvasWidget.h"
+#include "Image_Class.h"
 
-QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
-QT_END_NAMESPACE
-
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
@@ -31,10 +27,31 @@ private slots:
     // File operations
     void onLoadImage();
     void onSaveImage();
-    void onLoadTargetImage();
-    void onLoadWeightsImage();
+    void onResetImage();
 
-    // Basic filters
+    // History
+    void onUndo();
+    void onRedo();
+
+    // Canvas tool operations
+    void onSelectTool();
+    void onResizeTool();
+
+    // Canvas filter operations - Reflection
+    void onCanvasVerticalReflection();
+    void onCanvasHorizontalReflection();
+
+    // Canvas filter operations - Color
+    void onCanvasYellowFilter();
+    void onCanvasPurpleFilter();
+    void onCanvasInfraRedFilter();
+
+    // Canvas history
+    void onCanvasUndo();
+    void onCanvasRedo();
+    void onCanvasReset();
+
+    // Image filter operations
     void onGrayscale();
     void onBlackAndWhite();
     void onInvert();
@@ -42,24 +59,24 @@ private slots:
     void onRotate();
     void onLighten();
     void onDarken();
-
-    // Advanced filters
     void onCrop();
     void onFrame();
     void onEdges();
     void onBlur();
     void onResize();
-    void onMerge();
 
     // Morph operations
+    void onLoadTargetImage();
+    void onLoadWeightsImage();
     void onMorph();
     void onMorphAnimated();
     void onBlendFactorChanged(double value);
 
-    // UI helpers
-    void onResetImage();
-    void updateImageDisplay();
-    void updateStatusBar(const QString &message);
+    //Merge operations
+    void onLoadTargetMergeImage();
+    void onMerge();
+    void onMergeBlendFactorChanged(double value);
+    void onMergeModeChanged(const QString &text);
 
 private:
     // UI Setup
@@ -70,83 +87,107 @@ private:
     void createCentralWidget();
     void createFilterPanel();
     void createMorphPanel();
+    void createMergePanel();
 
-    // Image management
-    void displayImage(const Image &img);
+    // Utilities
+    void updateImageDisplay();
+    void updateStatusBar(const QString &message);
     QPixmap imageToPixmap(const Image &img);
 
-    // Member variables
-    Ui::MainWindow *ui;
+    // Canvas Widget
+    CanvasWidget *canvas;
 
-    // Images
-    std::unique_ptr<Image> currentImage;
-    std::unique_ptr<Image> originalImage;
-    std::unique_ptr<Image> targetImage;
-    std::unique_ptr<Image> weightsImage;
-    QString currentFilePath;
-    QString targetFilePath;
-    QString weightsFilePath;
-
-    // UI Components
+    // Central widgets
     QLabel *imageLabel;
     QScrollArea *scrollArea;
     QProgressBar *progressBar;
 
-    // Filter Panel
+    // Filter panel widgets
     QGroupBox *filterPanel;
+
+    // Canvas filter buttons
+    QPushButton *btnCanvasVertReflect;
+    QPushButton *btnCanvasHorzReflect;
+    QPushButton *btnCanvasYellow;
+    QPushButton *btnCanvasPurple;
+    QPushButton *btnCanvasInfraRed;
+    QPushButton *btnCanvasUndo;
+    QPushButton *btnCanvasRedo;
+    QPushButton *btnCanvasReset;
+
+    // Canvas filter controls
+    QSpinBox *canvasColorIntensity;
+
+    // Basic filter buttons
     QPushButton *btnGrayscale;
     QPushButton *btnBnW;
     QPushButton *btnInvert;
     QPushButton *btnReflect;
     QPushButton *btnEdges;
 
-    QSpinBox *rotateSpinBox;
+    // Rotation controls
     QPushButton *btnRotate;
+    QSpinBox *rotateSpinBox;
 
-    QSpinBox *lightenSpinBox;
+    // Brightness controls
     QPushButton *btnLighten;
-    QSpinBox *darkenSpinBox;
     QPushButton *btnDarken;
+    QSpinBox *lightenSpinBox;
+    QSpinBox *darkenSpinBox;
 
-    QSpinBox *blurSpinBox;
+    // Blur controls
     QPushButton *btnBlur;
+    QSpinBox *blurSpinBox;
 
     // Crop controls
+    QPushButton *btnCrop;
     QSpinBox *cropXSpinBox;
     QSpinBox *cropYSpinBox;
     QSpinBox *cropWidthSpinBox;
     QSpinBox *cropHeightSpinBox;
-    QPushButton *btnCrop;
 
     // Frame controls
+    QPushButton *btnFrame;
     QSpinBox *frameThicknessSpinBox;
     QSpinBox *frameRSpinBox;
     QSpinBox *frameGSpinBox;
     QSpinBox *frameBSpinBox;
-    QPushButton *btnFrame;
 
     // Resize controls
+    QPushButton *btnResize;
     QSpinBox *resizeWidthSpinBox;
     QSpinBox *resizeHeightSpinBox;
-    QPushButton *btnResize;
 
-    // Morph Panel
+    // Morph panel widgets
     QGroupBox *morphPanel;
     QPushButton *btnLoadTarget;
     QPushButton *btnLoadWeights;
+    QPushButton *btnMorph;
+    QPushButton *btnMorphAnimated;
     QLabel *targetImageLabel;
     QLabel *weightsImageLabel;
     QDoubleSpinBox *blendFactorSpinBox;
     QSpinBox *animateFramesSpinBox;
-    QPushButton *btnMorph;
-    QPushButton *btnMorphAnimated;
 
-    // Merge controls
-    QPushButton *btnLoadMergeImage;
-    QDoubleSpinBox *mergeAlphaSpinBox;
-    QComboBox *mergeModeCombo;
+    // Merge panel widgets
+    QGroupBox *mergePanel;
+    QPushButton *btnMergeTarget;
     QPushButton *btnMerge;
-    std::unique_ptr<Image> mergeImage;
+    QLabel *targetMergeLabel;
+    QDoubleSpinBox *mergeBlendFactorSpinBox;
+    QComboBox *mergeModeComboBox;
+
+    // Image data
+    std::unique_ptr<Image> currentImage;
+    std::unique_ptr<Image> originalImage;
+    std::unique_ptr<Image> targetImage;
+    std::unique_ptr<Image> weightsImage;
+    std::unique_ptr<Image> targetMergeImage;
+
+    // File paths
+    QString currentFilePath;
+    QString targetFilePath;
+    QString weightsFilePath;
 };
 
-#endif // MAINWINDOW_H
+#endif

@@ -26,7 +26,6 @@
 // stb_image header definitions
 #include "stb_image.h"
 #include "stb_image_write.h"
-#define pixel unsigned int
 
 #include <iostream>
 #include <cstring>

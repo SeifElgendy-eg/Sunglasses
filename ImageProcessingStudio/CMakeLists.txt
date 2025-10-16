@@ -17,7 +17,9 @@ add_executable(ImageProcessingStudio
     filters.cpp
     Image_Class.h
     gif.h
+    CanvasWidget.h
     stb_image_impl.cpp
+    CanvasWidget.cpp
 )
 
 target_link_libraries(ImageProcessingStudio
