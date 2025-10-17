@@ -24,6 +24,10 @@ public:
     ~MainWindow();
 
 private slots:
+    void applyMorphFilter(double blendFactor);
+    void applyMorphAnimated(int frameCount, double blendFactor);
+    void applyMergeToCanvas();
+
     void openImage();
     void saveImage();
     void showApplyCancelButtons();

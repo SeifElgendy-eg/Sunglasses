@@ -347,7 +347,7 @@ void MainWindow::createToolBar() {
         slider->setRange(-100, 100);
         slider->setValue(20);
 
-        // ADD TIMER FOR 100MS DELAY
+
         QTimer *timer = new QTimer(&dialog);
         timer->setSingleShot(true);
 
@@ -375,7 +375,6 @@ void MainWindow::createToolBar() {
             dialog.reject();
         });
 
-        // USE TIMER INSTEAD OF DIRECT CONNECTION
         connect(slider, &QSlider::valueChanged, timer, [timer]() {
             timer->start(100);
         });
@@ -405,7 +404,7 @@ void MainWindow::createToolBar() {
         slider->setRange(-100, 100);
         slider->setValue(30);
 
-        // ADD TIMER FOR 100MS DELAY
+
         QTimer *timer = new QTimer(&dialog);
         timer->setSingleShot(true);
 
@@ -433,7 +432,7 @@ void MainWindow::createToolBar() {
             dialog.reject();
         });
 
-        // USE TIMER INSTEAD OF DIRECT CONNECTION
+
         connect(slider, &QSlider::valueChanged, timer, [timer]() {
             timer->start(100);
         });
@@ -463,7 +462,7 @@ void MainWindow::createToolBar() {
         slider->setRange(0, 255);
         slider->setValue(128);
 
-        // ADD TIMER FOR 100MS DELAY
+
         QTimer *timer = new QTimer(&dialog);
         timer->setSingleShot(true);
 
@@ -491,7 +490,7 @@ void MainWindow::createToolBar() {
             dialog.reject();
         });
 
-        // USE TIMER INSTEAD OF DIRECT CONNECTION
+
         connect(slider, &QSlider::valueChanged, timer, [timer]() {
             timer->start(100);
         });
@@ -522,7 +521,7 @@ void MainWindow::createToolBar() {
         slider->setRange(1, 15);
         slider->setValue(3);
 
-        // ADD TIMER FOR 100MS DELAY
+
         QTimer *timer = new QTimer(&dialog);
         timer->setSingleShot(true);
 
@@ -549,7 +548,7 @@ void MainWindow::createToolBar() {
             dialog.reject();
         });
 
-        // USE TIMER INSTEAD OF DIRECT CONNECTION
+
         connect(slider, &QSlider::valueChanged, timer, [timer]() {
             timer->start(100);
         });
@@ -579,7 +578,7 @@ void MainWindow::createToolBar() {
         slider->setRange(-100, 100);
         slider->setValue(0);
 
-        // ADD TIMER FOR 100MS DELAY
+
         QTimer *timer = new QTimer(&dialog);
         timer->setSingleShot(true);
 
@@ -605,7 +604,7 @@ void MainWindow::createToolBar() {
             dialog.reject();
         });
 
-        // USE TIMER INSTEAD OF DIRECT CONNECTION
+
         connect(slider, &QSlider::valueChanged, timer, [timer]() {
             timer->start(100);
         });
@@ -688,7 +687,7 @@ void MainWindow::createToolBar() {
         slider->setRange(0, 89);
         slider->setValue(0);
 
-        // ADD TIMER FOR 100MS DELAY
+
         QTimer *timer = new QTimer(&dialog);
         timer->setSingleShot(true);
 
@@ -714,7 +713,7 @@ void MainWindow::createToolBar() {
             dialog.reject();
         });
 
-        // USE TIMER INSTEAD OF DIRECT CONNECTION
+
         connect(slider, &QSlider::valueChanged, timer, [timer]() {
             timer->start(100);
         });
@@ -752,7 +751,7 @@ void MainWindow::createToolBar() {
         slider->setRange(0, 255);
         slider->setValue(128);
 
-        // ADD TIMER FOR 100MS DELAY
+
         QTimer *timer = new QTimer(&dialog);
         timer->setSingleShot(true);
 
@@ -779,7 +778,7 @@ void MainWindow::createToolBar() {
             dialog.reject();
         });
 
-        // USE TIMER INSTEAD OF DIRECT CONNECTION
+
         connect(slider, &QSlider::valueChanged, timer, [timer]() {
             timer->start(100);
         });
@@ -870,6 +869,11 @@ QWidget *MainWindow::createFilterSidePanel() {
             [this]() { canvas->applyEdgeDetection(); });
     basicLayout->addWidget(btnEdges, 3, 0, 1, 2);
 
+    QPushButton *btnNoise = new QPushButton("Tv Noise", basicGroup);
+    connect(btnNoise, &QPushButton::clicked, this,
+            [this]() { canvas->applyTvNoiseFilter(); });
+    basicLayout->addWidget(btnNoise, 4, 0, 1, 2);
+
     QPushButton *btnSharpen = new QPushButton("Sharpen", basicGroup);
     connect(btnSharpen, &QPushButton::clicked, this,
             [this]() { canvas->applySharpenFilter(); });
@@ -930,10 +934,6 @@ QWidget *MainWindow::createFilterSidePanel() {
     });
     basicLayout->addWidget(btnPixelSort, 6, 0, 1, 2);
 
-    QPushButton *btnNoise = new QPushButton("Tv Noise", basicGroup);
-    connect(btnNoise, &QPushButton::clicked, this,
-            [this]() { canvas->applyTvNoiseFilter(); });
-    basicLayout->addWidget(btnNoise, 4, 0, 1, 2);
     layout->addWidget(basicGroup);
 
     QGroupBox *rotateGroup = new QGroupBox("Rotation", contentWidget);
@@ -1027,36 +1027,6 @@ QWidget *MainWindow::createFilterSidePanel() {
 
     layout->addWidget(blurGroup);
 
-
-    // Resize
-    QGroupBox *resizeGroup = new QGroupBox("Resize Image", contentWidget);
-    QGridLayout *resizeLayout = new QGridLayout(resizeGroup);
-    resizeLayout->setSpacing(8);
-    resizeLayout->setContentsMargins(10, 22, 10, 10);
-
-    resizeLayout->addWidget(new QLabel("Width:"), 0, 0);
-    QSpinBox *resizeWidthSpinBox = new QSpinBox(resizeGroup);
-    resizeWidthSpinBox->setRange(5, 10000);
-    resizeWidthSpinBox->setValue(800);
-    resizeWidthSpinBox->setSuffix("px");
-    resizeLayout->addWidget(resizeWidthSpinBox, 0, 1);
-
-    resizeLayout->addWidget(new QLabel("Height:"), 1, 0);
-    QSpinBox *resizeHeightSpinBox = new QSpinBox(resizeGroup);
-    resizeHeightSpinBox->setRange(5, 10000);
-    resizeHeightSpinBox->setValue(600);
-    resizeHeightSpinBox->setSuffix("px");
-
-    resizeLayout->addWidget(resizeHeightSpinBox, 1, 1);
-
-    connect(resizeWidthSpinBox, &QSpinBox::valueChanged, this,
-            [this](int val) { canvas->applyResizeTool(val, 0); });
-
-    connect(resizeHeightSpinBox, &QSpinBox::valueChanged, this,
-            [this](int val) { canvas->applyResizeTool(0, val); });
-
-    layout->addWidget(resizeGroup);
-
     QGroupBox *panelContainer = new QGroupBox(this);
     QVBoxLayout *panelLayout = new QVBoxLayout(panelContainer);
 
@@ -1066,12 +1036,10 @@ QWidget *MainWindow::createFilterSidePanel() {
 
     scrollArea->setWidget(contentWidget);
 
-
     return panelContainer;
 }
 
 QWidget *MainWindow::createMorphPanel(){
-
 
     QScrollArea *morphScroll = new QScrollArea();
     morphScroll->setWidgetResizable(true);
@@ -1115,10 +1083,10 @@ QWidget *MainWindow::createMorphPanel(){
     weightsLayout->setSpacing(10);
     weightsLayout->setContentsMargins(10, 22, 10, 10);
 
-   QPushButton* btnLoadWeights = new QPushButton("Load Weights Image", weightsGroup);
+    QPushButton* btnLoadWeights = new QPushButton("Load Weights Image", weightsGroup);
     btnLoadWeights->setStyleSheet("QPushButton { background-color: #2563EB; } QPushButton:hover { background-color: #3B82F6; }");
-   connect(btnLoadWeights, &QPushButton::clicked, this,[this](){
-        MainWindow::loadWeightsImage();
+    connect(btnLoadWeights, &QPushButton::clicked, this,[this](){
+        loadWeightsImage();
     });
     weightsLayout->addWidget(btnLoadWeights);
 
@@ -1150,9 +1118,6 @@ QWidget *MainWindow::createMorphPanel(){
     blendFactorSpinBox->setValue(0.5);
     blendFactorSpinBox->setDecimals(2);
 
-
-    connect(blendFactorSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this, [](){});
     blendControlLayout->addWidget(blendFactorSpinBox, 1);
     blendLayout->addLayout(blendControlLayout);
 
@@ -1177,9 +1142,11 @@ QWidget *MainWindow::createMorphPanel(){
     frameLayout->addWidget(animateFramesSpinBox, 1);
     animLayout->addLayout(frameLayout);
 
-   QPushButton *btnMorphAnimated = new QPushButton("Create Animated GIF", animGroup);
+    QPushButton *btnMorphAnimated = new QPushButton("Create Animated GIF", animGroup);
     btnMorphAnimated->setStyleSheet("QPushButton { background-color: #2563EB; } QPushButton:hover { background-color: #3B82F6; }");
-   connect(btnMorphAnimated, &QPushButton::clicked, this, [](){});
+    connect(btnMorphAnimated, &QPushButton::clicked, this, [this, animateFramesSpinBox, blendFactorSpinBox](){
+        applyMorphAnimated(animateFramesSpinBox->value(), blendFactorSpinBox->value());
+    });
     animLayout->addWidget(btnMorphAnimated);
 
     layout->addWidget(animGroup);
@@ -1187,7 +1154,9 @@ QWidget *MainWindow::createMorphPanel(){
     // Main Morph Button
     QPushButton *btnMorph = new QPushButton("Apply Morph", morphContent);
     btnMorph->setStyleSheet("QPushButton { background-color: #2563EB; font-weight: 600; padding: 16px; font-size: 11pt; } QPushButton:hover { background-color: #3B82F6; }");
-    connect(btnMorph, &QPushButton::clicked, this, [](){});
+    connect(btnMorph, &QPushButton::clicked, this, [this, blendFactorSpinBox](){
+        applyMorphFilter(blendFactorSpinBox->value());
+    });
     layout->addWidget(btnMorph);
 
     QGroupBox *morphContainer = new QGroupBox(this);
@@ -1200,7 +1169,6 @@ QWidget *MainWindow::createMorphPanel(){
     morphScroll->setWidget(morphContent);
 
     return morphContainer;
-
 }
 
 QWidget *MainWindow::createMergePanel(){
@@ -1294,25 +1262,22 @@ QWidget *MainWindow::createMergePanel(){
     modeLayout->addWidget(mergeModeComboBox, 1);
     controlsLayout->addLayout(modeLayout);
 
-
     auto applyMerge = [this, mergeBlendFactorSpinBox, mergeModeComboBox]() {
-
-        double alpha = mergeBlendFactorSpinBox ->value();
-        char mode = mergeModeComboBox-> currentData().toChar().toLatin1();
-
-        applyMergeFilter(alpha,mode);
+        double alpha = mergeBlendFactorSpinBox->value();
+        char mode = mergeModeComboBox->currentData().toChar().toLatin1();
+        applyMergeFilter(alpha, mode);
     };
 
     connect(mergeBlendFactorSpinBox, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
-            this,applyMerge);
+            this, applyMerge);
     connect(mergeModeComboBox, &QComboBox::currentTextChanged,
-            this,applyMerge);
+            this, applyMerge);
     layout->addWidget(controlsGroup);
 
     // Apply Button
-    QPushButton *btnMerge = new QPushButton("Apply Merge", mergeContent);
+    QPushButton *btnMerge = new QPushButton("Apply Merge to Canvas", mergeContent);
     connect(btnMerge, &QPushButton::clicked, this, [this](){
-        applyMergeFilter(0.5,'f');
+        applyMergeToCanvas();
     });
     layout->addWidget(btnMerge);
 
@@ -1325,7 +1290,6 @@ QWidget *MainWindow::createMergePanel(){
     mergePanelLayout->addWidget(mergeScroll);
 
     return mergePanel;
-
 }
 
 void MainWindow::openImage() {
@@ -1764,4 +1728,123 @@ void MainWindow::onApplySkewFilter() { if (canvas) canvas->commitChanges(); }
 void MainWindow::onPreviewSkewFilter(double degree) {
     if (canvas) canvas->applySkewFilter(degree, CanvasWidget::FilterMode::Preview);
 }
+
+void MainWindow::applyMorphFilter(double blendFactor)
+{
+    if (canvas->isMImageNull())
+    {
+        QMessageBox::warning(this, "Warning", "Please load a main image first.");
+        return;
+    }
+
+    if (!targetImage)
+    {
+        QMessageBox::warning(this, "Warning", "Please load a target image first.");
+        return;
+    }
+
+    try
+    {
+        // Convert canvas image to Image type
+        Image sourceImage = canvas->qImageToImage(canvas->image());
+        Image targetImg = *targetImage;
+
+        // Create or use weights image
+        Image weightsImg;
+        if (weightsImage) {
+            weightsImg = *weightsImage;
+        } else {
+            // Create uniform weights if none provided
+            weightsImg = Image(sourceImage.width, sourceImage.height);
+            for (int i = 0; i < weightsImg.width * weightsImg.height * 3; ++i) {
+                weightsImg.imageData[i] = 128; // Uniform weight
+            }
+        }
+
+        // Call the morph function
+        morph(sourceImage, targetImg, weightsImg, blendFactor);
+
+        // Update canvas with morphed result
+        canvas->setImage(canvas->imageToQImage(sourceImage));
+
+        QMessageBox::information(this, "Success", "Morph applied successfully!");
+    }
+    catch (const std::exception &e)
+    {
+        QMessageBox::critical(this, "Error", QString("Morph operation failed: %1").arg(e.what()));
+    }
+}
+
+void MainWindow::applyMorphAnimated(int frameCount, double blendFactor)
+{
+    if (canvas->isMImageNull())
+    {
+        QMessageBox::warning(this, "Warning", "Please load a main image first.");
+        return;
+    }
+
+    if (!targetImage)
+    {
+        QMessageBox::warning(this, "Warning", "Please load a target image first.");
+        return;
+    }
+
+    QString outputPath = QFileDialog::getSaveFileName(this, "Save Animated GIF",
+                                                      "morph_animation.gif",
+                                                      "GIF Files (*.gif)");
+    if (outputPath.isEmpty()) return;
+
+    try
+    {
+        // Convert canvas image to Image type
+        Image sourceImage = canvas->qImageToImage(canvas->image());
+        Image targetImg = *targetImage;
+
+        // Create or use weights image
+        Image weightsImg;
+        if (weightsImage) {
+            weightsImg = *weightsImage;
+        } else {
+            // Create uniform weights if none provided
+            weightsImg = Image(sourceImage.width, sourceImage.height);
+            for (int i = 0; i < weightsImg.width * weightsImg.height * 3; ++i) {
+                weightsImg.imageData[i] = 128; // Uniform weight
+            }
+        }
+
+        // Call the animated morph function
+        morphAnimated(sourceImage, targetImg, weightsImg,
+                      outputPath.toStdString(), frameCount, blendFactor);
+
+        QMessageBox::information(this, "Success",
+                                 QString("Animated GIF created successfully!\nSaved to: %1").arg(outputPath));
+    }
+    catch (const std::exception &e)
+    {
+        QMessageBox::critical(this, "Error",
+                              QString("Animated morph failed: %1").arg(e.what()));
+    }
+}
+
+void MainWindow::applyMergeToCanvas()
+{
+    if (!outputMergeImage)
+    {
+        QMessageBox::warning(this, "Warning", "Please apply merge first to generate output.");
+        return;
+    }
+
+    try
+    {
+        // Apply the merged image to canvas
+        canvas->setImage(canvas->imageToQImage(*outputMergeImage));
+        QMessageBox::information(this, "Success", "Merge applied to canvas!");
+    }
+    catch (const std::exception &e)
+    {
+        QMessageBox::critical(this, "Error",
+                              QString("Failed to apply merge to canvas: %1").arg(e.what()));
+    }
+}
+
 void MainWindow::exitApp() { close(); }
