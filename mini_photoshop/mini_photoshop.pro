@@ -10,12 +10,18 @@ CONFIG += c++17
 
 SOURCES += \
     CanvasWidget.cpp \
+    filters.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    stb_image_impl.cpp
 
 HEADERS += \
     CanvasWidget.h \
-    mainwindow.h
+    Image_Class.h \
+    gif.h \
+    mainwindow.h \
+    stb_image.h \
+    stb_image_write.h
 
 FORMS += \
     mainwindow.ui
