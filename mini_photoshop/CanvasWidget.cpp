@@ -1,5 +1,6 @@
 #include "CanvasWidget.h"
 #include <QMouseEvent>
+#include <QKeyEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QWheelEvent>
@@ -44,8 +45,30 @@ void CanvasWidget::setTool(ToolMode tool) {
     m_tool = tool;
     m_isDraggingTool = false;
     m_activeHandle = Handle::None;
-    if (tool == ToolMode::Crop) m_cropRect = m_image.rect();
+
+    if (tool == ToolMode::Crop) {
+        m_cropRect = m_image.rect();
+        setPreviewMode(true);
+    } else {
+        setPreviewMode(false);
+    }
     updateCursor(this->mapFromGlobal(QCursor::pos()));
+    update();
+}
+
+void CanvasWidget::resetView() {
+    if (m_image.isNull()) return;
+    m_panOffset = m_image.rect().center();
+    qreal scaleX = (qreal)width() / m_image.width();
+    qreal scaleY = (qreal)height() / m_image.height();
+    m_scale = qMin(scaleX, scaleY) * 0.95;
+    m_cropRect = m_image.rect();
+    m_selectionRect = QRectF();
+
+    start_x = 0;
+    start_y = 0;
+    end_x = m_image.width();
+    end_y = m_image.height();
     update();
 }
 
@@ -56,23 +79,8 @@ void CanvasWidget::setPreviewMode(bool enabled) {
     update();
 }
 
-void CanvasWidget::resetView() {
-    if (m_image.isNull()) return;
-    m_panOffset = m_image.rect().center();
-    qreal scaleX = (qreal)width() / m_image.width();
-    qreal scaleY = (qreal)height() / m_image.height();
-    m_scale = qMin(scaleX, scaleY) * 0.95;
 
-    start_x = 0;
-    end_x = m_image.width();
-    start_y = 0;
-    end_y = m_image.height();
-    m_cropRect = m_image.rect();
-
-    update();
-}
-
-// --- Modern Event Handlers ---
+// --- Event Handlers ---
 
 void CanvasWidget::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
@@ -88,14 +96,27 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
     painter.translate(-m_panOffset);
     painter.drawImage(0, 0, m_image);
 
+    // Draw tool-specific overlays
     if (m_tool == ToolMode::Crop && m_previewMode) {
         drawCropTool(painter);
+    }
+    if (m_tool == ToolMode::Resize) {
+        drawResizeHandle(painter);
+    }
+    if (m_tool == ToolMode::Select && !m_selectionRect.isNull()) {
+        QPen marqueePen(Qt::white, 1.0 / m_scale, Qt::DashLine);
+        marqueePen.setDashPattern({4.0, 4.0});
+        painter.setPen(marqueePen);
+        painter.setBrush(QColor(0, 100, 255, 20));
+        painter.drawRect(m_selectionRect);
     }
 }
 
 void CanvasWidget::resizeEvent(QResizeEvent *event) { QWidget::resizeEvent(event); }
 
 void CanvasWidget::wheelEvent(QWheelEvent *event) {
+    if (m_image.isNull()) return;
+    qreal oldScale = m_scale;
     if (event->angleDelta().y() > 0) m_scale *= 1.25; else m_scale /= 1.25;
     m_scale = qBound(0.01, m_scale, 100.0);
     QPointF mousePos = event->position();
@@ -104,7 +125,8 @@ void CanvasWidget::wheelEvent(QWheelEvent *event) {
 }
 
 void CanvasWidget::mousePressEvent(QMouseEvent *event) {
-    if (event->button() == Qt::MiddleButton) {
+    if (m_image.isNull()) return;
+    if (event->button() == Qt::MiddleButton || (event->button() == Qt::LeftButton && m_tool == ToolMode::Move)) {
         m_isPanning = true;
         m_panLastPos = event->position();
         setCursor(Qt::ClosedHandCursor);
@@ -114,7 +136,11 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         QPointF imagePos = screenToImage(event->position());
         m_activeHandle = getHandleAt(imagePos);
+
         if (m_activeHandle != Handle::None) {
+            if (m_tool == ToolMode::Resize) {
+                saveState(); // Save before starting a resize
+            }
             m_isDraggingTool = true;
             m_dragStartPos_image = imagePos;
         } else if (m_tool == ToolMode::Crop) {
@@ -122,6 +148,10 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
             m_activeHandle = Handle::BottomRight;
             m_cropRect.setTopLeft(imagePos);
             m_cropRect.setSize(QSizeF(0, 0));
+        } else if (m_tool == ToolMode::Select) {
+            m_isDraggingTool = true;
+            m_dragStartPos_image = imagePos;
+            m_selectionRect = QRectF(imagePos, QSizeF(0, 0));
         }
         event->accept();
     }
@@ -137,29 +167,36 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
     }
     if (m_isDraggingTool) {
         QPointF currentImagePos = screenToImage(event->position());
-        QPointF delta = currentImagePos - m_dragStartPos_image;
-        QRectF newRect = m_cropRect;
-        switch (m_activeHandle) {
-        case Handle::Move: newRect.translate(delta); m_dragStartPos_image = currentImagePos; break;
-        case Handle::Top: newRect.setTop(currentImagePos.y()); break;
-        case Handle::Bottom: newRect.setBottom(currentImagePos.y()); break;
-        case Handle::Left: newRect.setLeft(currentImagePos.x()); break;
-        case Handle::Right: newRect.setRight(currentImagePos.x()); break;
-        case Handle::TopLeft: newRect.setTopLeft(currentImagePos); break;
-        case Handle::TopRight: newRect.setTopRight(currentImagePos); break;
-        case Handle::BottomLeft: newRect.setBottomLeft(currentImagePos); break;
-        case Handle::BottomRight:
-            if (m_tool == ToolMode::Crop) {
-                newRect.setBottomRight(currentImagePos);
-            } else if (m_tool == ToolMode::Resize) {
-                int newWidth = qMax(10, (int)(o_image.width() + delta.x()));
-                int newHeight = qMax(10, (int)(o_image.height() + delta.y()));
-                applyResizeTool(newWidth, newHeight);
-            }
-            break;
-        default: break;
+
+        if (m_tool == ToolMode::Select) {
+            m_selectionRect = QRectF(m_dragStartPos_image, currentImagePos).normalized();
+            update();
+            return;
         }
-        if (m_tool == ToolMode::Crop) m_cropRect = newRect.normalized();
+
+        QPointF delta = currentImagePos - m_dragStartPos_image;
+
+        if (m_tool == ToolMode::Resize && m_activeHandle == Handle::BottomRight) {
+            int newWidth = qMax(10, (int)(o_image.width() + delta.x()));
+            int newHeight = qMax(10, (int)(o_image.height() + delta.y()));
+            applyResizeTool(newWidth, newHeight);
+        }
+        else if (m_tool == ToolMode::Crop) {
+            QRectF newRect = m_cropRect;
+            switch (m_activeHandle) {
+            case Handle::Move: newRect.translate(delta); m_dragStartPos_image = currentImagePos; break;
+            case Handle::Top: newRect.setTop(currentImagePos.y()); break;
+            case Handle::Bottom: newRect.setBottom(currentImagePos.y()); break;
+            case Handle::Left: newRect.setLeft(currentImagePos.x()); break;
+            case Handle::Right: newRect.setRight(currentImagePos.x()); break;
+            case Handle::TopLeft: newRect.setTopLeft(currentImagePos); break;
+            case Handle::TopRight: newRect.setTopRight(currentImagePos); break;
+            case Handle::BottomLeft: newRect.setBottomLeft(currentImagePos); break;
+            case Handle::BottomRight: newRect.setBottomRight(currentImagePos); break;
+            default: break;
+            }
+            m_cropRect = newRect.normalized();
+        }
         update();
     } else {
         updateCursor(event->position().toPoint());
@@ -171,19 +208,45 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
         m_isPanning = false;
         updateCursor(event->position().toPoint());
     }
-    if (event->button() == Qt::LeftButton && m_isDraggingTool) {
-        m_isDraggingTool = false;
-        m_activeHandle = Handle::None;
+    if (event->button() == Qt::LeftButton) {
+        if (m_tool == ToolMode::Move && m_isPanning) {
+            m_isPanning = false;
+        }
+        if (m_isDraggingTool) {
+            if (m_tool == ToolMode::Select) {
+                QRectF boundedSelection = m_selectionRect.intersected(m_image.rect());
+                start_x = qMax(0, (int)boundedSelection.left());
+                end_x = qMin(m_image.width(), (int)boundedSelection.right());
+                start_y = qMax(0, (int)boundedSelection.top());
+                end_y = qMin(m_image.height(), (int)boundedSelection.bottom());
+            } else if (m_tool == ToolMode::Resize) {
+                // Commit the resize by updating the original image
+                o_image = m_image;
+            }
+            m_isDraggingTool = false;
+            m_activeHandle = Handle::None;
+        }
         updateCursor(event->position().toPoint());
     }
 }
 
-// --- Drawing, Coordinate, and Cursor Helpers ---
-
-QPointF CanvasWidget::screenToImage(const QPointF &p_screen) const {
-    if(m_image.isNull()) return QPointF();
-    return (p_screen - rect().center()) / m_scale + m_panOffset;
+void CanvasWidget::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_D && event->modifiers() == Qt::ControlModifier) {
+        if (!m_selectionRect.isNull()) {
+            m_selectionRect = QRectF(); // Clear selection
+            // Reset filter region to full image
+            start_x = 0;
+            start_y = 0;
+            end_x = m_image.width();
+            end_y = m_image.height();
+            update();
+        }
+    } else {
+        QWidget::keyPressEvent(event); // Pass other key events up
+    }
 }
+
+// --- Drawing, Coordinate, and Cursor Helpers ---
 
 void CanvasWidget::drawCropTool(QPainter &painter) {
     painter.save();
@@ -192,12 +255,10 @@ void CanvasWidget::drawCropTool(QPainter &painter) {
     path.addRect(m_cropRect);
     painter.setBrush(QColor(0, 0, 0, 150));
     painter.drawPath(path);
-
     const qreal penWidth = 2.0 / m_scale;
     painter.setPen(QPen(Qt::white, penWidth));
     painter.setBrush(Qt::NoBrush);
     painter.drawRect(m_cropRect);
-
     const qreal handleSize = 10.0 / m_scale;
     painter.setBrush(Qt::white);
     painter.drawRect(QRectF(m_cropRect.topLeft(), QSizeF(handleSize, handleSize)));
@@ -207,6 +268,21 @@ void CanvasWidget::drawCropTool(QPainter &painter) {
     painter.restore();
 }
 
+void CanvasWidget::drawResizeHandle(QPainter &painter) {
+    painter.save();
+    const qreal handleSize = 15.0 / m_scale;
+    QRectF handleRect(m_image.rect().bottomRight() - QPointF(handleSize/2, handleSize/2), QSizeF(handleSize, handleSize));
+    painter.setPen(QPen(Qt::white, 2.0 / m_scale));
+    painter.setBrush(Qt::white);
+    painter.drawEllipse(handleRect);
+    painter.restore();
+}
+
+QPointF CanvasWidget::screenToImage(const QPointF &p_screen) const {
+    if(m_image.isNull()) return QPointF();
+    return (p_screen - rect().center()) / m_scale + m_panOffset;
+}
+
 CanvasWidget::Handle CanvasWidget::getHandleAt(const QPointF &p_image) const {
     const qreal handleSize = 15.0 / m_scale;
     if (m_tool == ToolMode::Crop && m_previewMode) {
@@ -214,29 +290,37 @@ CanvasWidget::Handle CanvasWidget::getHandleAt(const QPointF &p_image) const {
         QRectF bottom(m_cropRect.left(), m_cropRect.bottom() - handleSize/2, m_cropRect.width(), handleSize);
         QRectF left(m_cropRect.left() - handleSize/2, m_cropRect.top(), handleSize, m_cropRect.height());
         QRectF right(m_cropRect.right() - handleSize/2, m_cropRect.top(), handleSize, m_cropRect.height());
-
-        if (QRectF(right.topLeft(), QSizeF(handleSize, handleSize)).contains(p_image)) return Handle::TopRight;
-        if (QRectF(left.topRight(), QSizeF(handleSize, handleSize)).contains(p_image)) return Handle::TopLeft;
-        if (QRectF(right.bottomLeft(), QSizeF(handleSize, handleSize)).contains(p_image)) return Handle::BottomRight;
-        if (QRectF(left.bottomRight(), QSizeF(handleSize, handleSize)).contains(p_image)) return Handle::BottomLeft;
-
+        if (QRectF(m_cropRect.topLeft(), QSizeF(handleSize,handleSize)).contains(p_image)) return Handle::TopLeft;
+        if (QRectF(m_cropRect.topRight() - QPointF(handleSize,0), QSizeF(handleSize,handleSize)).contains(p_image)) return Handle::TopRight;
+        if (QRectF(m_cropRect.bottomLeft() - QPointF(0,handleSize), QSizeF(handleSize,handleSize)).contains(p_image)) return Handle::BottomLeft;
+        if (QRectF(m_cropRect.bottomRight() - QPointF(handleSize,handleSize), QSizeF(handleSize,handleSize)).contains(p_image)) return Handle::BottomRight;
         if (top.contains(p_image)) return Handle::Top;
         if (bottom.contains(p_image)) return Handle::Bottom;
         if (left.contains(p_image)) return Handle::Left;
         if (right.contains(p_image)) return Handle::Right;
         if (m_cropRect.contains(p_image)) return Handle::Move;
-    } else if (m_tool == ToolMode::Resize) {
+    }
+    else if (m_tool == ToolMode::Resize) {
         QRectF bottomRightHandle(m_image.rect().bottomRight() - QPointF(handleSize, handleSize), QSizeF(handleSize*2, handleSize*2));
         if(bottomRightHandle.contains(p_image)) return Handle::BottomRight;
+    } else if (m_tool == ToolMode::Move) {
+        if (m_image.rect().contains(p_image.toPoint())) {
+            return Handle::Move;
+        }
     }
     return Handle::None;
 }
 
 void CanvasWidget::updateCursor(const QPoint& p_screen) {
-    if (m_isPanning) { setCursor(Qt::ClosedHandCursor); return; }
-    Handle handle = getHandleAt(screenToImage(p_screen));
+    if (m_isPanning) {
+        setCursor(Qt::ClosedHandCursor);
+        return;
+    }
+    QPointF p_image = screenToImage(p_screen);
+    Handle handle = getHandleAt(p_image);
     Qt::CursorShape cursor = Qt::ArrowCursor;
     switch (m_tool) {
+    case ToolMode::None: cursor = Qt::ArrowCursor; break;
     case ToolMode::Select: cursor = Qt::CrossCursor; break;
     case ToolMode::Move: cursor = Qt::OpenHandCursor; break;
     case ToolMode::Crop:
@@ -253,12 +337,11 @@ void CanvasWidget::updateCursor(const QPoint& p_screen) {
         if(handle == Handle::BottomRight) cursor = Qt::SizeFDiagCursor;
         else cursor = Qt::ArrowCursor;
         break;
-    default: cursor = Qt::ArrowCursor; break;
     }
     setCursor(cursor);
 }
 
-// --- State Management & Undo/Redo (Restored from Original) ---
+// --- State Management (Undo/Redo, etc.) ---
 
 void CanvasWidget::saveState() {
     m_undoStack.push({m_image, o_image});
@@ -294,7 +377,6 @@ void CanvasWidget::resetImage() {
     m_image = r_image;
     o_image = r_image;
     resetView();
-    update();
 }
 
 void CanvasWidget::commitChanges() {
@@ -314,15 +396,22 @@ void CanvasWidget::cancelChanges() {
     update();
 }
 
-
-// --- All Original Filter and Tool Functions ---
+// --- Filters and Tools ---
 
 void CanvasWidget::applyCrop() {
-    if(m_image.isNull() || !m_cropRect.isValid()) return;
+    if(m_image.isNull() || !m_cropRect.isValid() || m_cropRect.size().isEmpty()) return;
     saveState();
     m_image = m_image.copy(m_cropRect.toRect().intersected(m_image.rect()));
-    o_image = o_image.copy(m_cropRect.toRect().intersected(o_image.rect()));
+    o_image = m_image; // The new cropped image becomes the original for future resizes
+    setTool(ToolMode::None); // Exit crop mode
     resetView();
+}
+
+void CanvasWidget::applyResizeTool(int newWidth, int newHeight) {
+    if (o_image.isNull()) return;
+    // Changed to IgnoreAspectRatio for free-form scaling
+    m_image = o_image.scaled(newWidth, newHeight, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    update();
 }
 
 void CanvasWidget::applyGrayScaleFilter() {
@@ -458,12 +547,6 @@ void CanvasWidget::applyBlurFilter(int kernelSize, FilterMode mode) {
     update();
 }
 
-void CanvasWidget::applyResizeTool(int newWidth, int newHeight) {
-    if (o_image.isNull()) return;
-    m_image = o_image.scaled(newWidth, newHeight, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    update();
-}
-
 void CanvasWidget::applyEdgeDetection() {
     if (m_image.isNull()) return;
     saveState();
@@ -524,7 +607,6 @@ void CanvasWidget::applyRotateFilter(int degrees) {
     rotate(o_image, degrees);
     m_lastRotation = (m_lastRotation + degrees) % 360;
     resetView();
-    update();
 }
 
 void CanvasWidget::applyFrameFilter(int thickness, int r, int g, int b) {

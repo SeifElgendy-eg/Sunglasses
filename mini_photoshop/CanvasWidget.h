@@ -16,10 +16,11 @@ class CanvasWidget : public QWidget {
 public:
     explicit CanvasWidget(QWidget *parent = nullptr);
 
+    // Enums for clarity
     enum class ToolMode { None, Move, Select, Resize, Crop };
     enum class FilterMode { Preview, Increment };
 
-    // Public API
+    // --- Public API ---
     void setImage(const QImage &img);
     void setTool(ToolMode tool);
     const QImage &image() const { return m_image; }
@@ -38,15 +39,15 @@ public:
     void cancelChanges();
     void resetImage();
 
-    // Filters and Tools (Restored from your original code)
+    // Filters and Tools
     void applyCrop();
     void applyGrayScaleFilter();
     void applyInversionFilter();
     void applyResizeTool(int newWidth, int newHeight);
     void applyVeriticalReflection();
     void applyHorizontalReflection();
-    void applyYellowFilter(const int intensity, FilterMode mode = FilterMode::Increment);
-    void applyPurpleFilter(const int intensity, FilterMode mode = FilterMode::Increment);
+    void applyYellowFilter(int intensity, FilterMode mode = FilterMode::Increment);
+    void applyPurpleFilter(int intensity, FilterMode mode = FilterMode::Increment);
     void applyInfraRedFilter();
     void applyBlackAndWhiteFilter(int threshold, FilterMode mode = FilterMode::Increment);
     void applyBlurFilter(int kernelSize, FilterMode mode = FilterMode::Increment);
@@ -58,24 +59,26 @@ public:
     void applyOilPaintFilter(int kernelSize, FilterMode mode = FilterMode::Increment);
     void applySkewFilter(double degree, FilterMode mode = FilterMode::Increment);
 
-    // Public member for mainwindow to access and modify
+    // Public member for mainwindow to access
     QRectF m_cropRect;
 
 signals:
-    // Signal for the main window to react to UI changes (Restored)
     void previewModeChanged(bool enabled);
 
 protected:
+    // Override Qt's event handlers
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override; // Added for shortcuts
 
 private:
     // Drawing Helpers
     void drawCropTool(QPainter &painter);
+    void drawResizeHandle(QPainter &painter);
     QPointF screenToImage(const QPointF &p_screen) const;
 
     // Handle detection for tools
@@ -103,6 +106,7 @@ private:
     ToolMode m_tool = ToolMode::None;
     QPointF m_panLastPos;
     bool m_isPanning = false;
+
     bool m_isDraggingTool = false;
     QPointF m_dragStartPos_image;
     Handle m_activeHandle = Handle::None;
