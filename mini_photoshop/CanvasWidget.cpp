@@ -8,13 +8,13 @@
 #include <random>
 #include <vector>
 
-// --- Constants ---
+// Constants
 const QColor WIDGET_BACKGROUND_COLOR = QColor("#1e1e1e");
 const QColor CHECKERBOARD_COLOR_1 = QColor("#2b2b2b");
 const QColor CHECKERBOARD_COLOR_2 = QColor("#3a3a3a");
 const int CHECKERBOARD_TILE_SIZE = 20;
 
-// --- Constructor & Setup ---
+// Constructor & Setup
 
 CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent) {
     setMouseTracking(true);
@@ -80,7 +80,7 @@ void CanvasWidget::setPreviewMode(bool enabled) {
 }
 
 
-// --- Event Handlers ---
+// Event Handlers
 
 void CanvasWidget::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
@@ -246,7 +246,7 @@ void CanvasWidget::keyPressEvent(QKeyEvent *event) {
     }
 }
 
-// --- Drawing, Coordinate, and Cursor Helpers ---
+// Drawing, Coordinate, and Cursor Helpers
 
 void CanvasWidget::drawCropTool(QPainter &painter) {
     painter.save();
@@ -341,7 +341,7 @@ void CanvasWidget::updateCursor(const QPoint& p_screen) {
     setCursor(cursor);
 }
 
-// --- State Management (Undo/Redo, etc.) ---
+// State Management (Undo/Redo)
 
 void CanvasWidget::saveState() {
     m_undoStack.push({m_image, o_image});
@@ -396,14 +396,14 @@ void CanvasWidget::cancelChanges() {
     update();
 }
 
-// --- Filters and Tools ---
+// Filters and Tools
 
 void CanvasWidget::applyCrop() {
     if(m_image.isNull() || !m_cropRect.isValid() || m_cropRect.size().isEmpty()) return;
     saveState();
     m_image = m_image.copy(m_cropRect.toRect().intersected(m_image.rect()));
-    o_image = m_image; // The new cropped image becomes the original for future resizes
-    setTool(ToolMode::None); // Exit crop mode
+    o_image = m_image;
+    setTool(ToolMode::None);
     resetView();
 }
 
