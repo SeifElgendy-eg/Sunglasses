@@ -43,7 +43,39 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         "openImage",
         "",
         "saveImage",
-        "exitApp"
+        "showApplyCancelButtons",
+        "hideApplyCancelButtons",
+        "exitApp",
+        "onLoadImage",
+        "onSaveImage",
+        "onResetImage",
+        "onUndo",
+        "onRedo",
+        "onSelectTool",
+        "onResizeTool",
+        "onCropTool",
+        "onCanvasVerticalReflection",
+        "onCanvasHorizontalReflection",
+        "onCanvasYellowFilter",
+        "onCanvasPurpleFilter",
+        "onCanvasInfraRedFilter",
+        "onCanvasUndo",
+        "onCanvasRedo",
+        "onCanvasReset",
+        "onApplyBnWFilter",
+        "onPreviewBnWFilter",
+        "threshold",
+        "onApplyBlurFilter",
+        "onPreviewBlurFilter",
+        "kernelSize",
+        "onApplyLightOrDarkFilter",
+        "onPreviewLightOrDarkFilter",
+        "percent",
+        "onApplyOilPaintFilter",
+        "onPreviewOilPaintFilter",
+        "onApplySkewFilter",
+        "onPreviewSkewFilter",
+        "degree"
     };
 
     QtMocHelpers::UintData qt_methods {
@@ -51,8 +83,74 @@ template <> constexpr inline auto MainWindow::qt_create_metaobjectdata<qt_meta_t
         QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'saveImage'
         QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
-        // Slot 'exitApp'
+        // Slot 'showApplyCancelButtons'
         QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'hideApplyCancelButtons'
+        QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'exitApp'
+        QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onLoadImage'
+        QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onSaveImage'
+        QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onResetImage'
+        QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onUndo'
+        QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onRedo'
+        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onSelectTool'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onResizeTool'
+        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCropTool'
+        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCanvasVerticalReflection'
+        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCanvasHorizontalReflection'
+        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCanvasYellowFilter'
+        QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCanvasPurpleFilter'
+        QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCanvasInfraRedFilter'
+        QtMocHelpers::SlotData<void()>(19, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCanvasUndo'
+        QtMocHelpers::SlotData<void()>(20, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCanvasRedo'
+        QtMocHelpers::SlotData<void()>(21, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onCanvasReset'
+        QtMocHelpers::SlotData<void()>(22, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onApplyBnWFilter'
+        QtMocHelpers::SlotData<void()>(23, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewBnWFilter'
+        QtMocHelpers::SlotData<void(int)>(24, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 25 },
+        }}),
+        // Slot 'onApplyBlurFilter'
+        QtMocHelpers::SlotData<void()>(26, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewBlurFilter'
+        QtMocHelpers::SlotData<void(int)>(27, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 28 },
+        }}),
+        // Slot 'onApplyLightOrDarkFilter'
+        QtMocHelpers::SlotData<void()>(29, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewLightOrDarkFilter'
+        QtMocHelpers::SlotData<void(int)>(30, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 31 },
+        }}),
+        // Slot 'onApplyOilPaintFilter'
+        QtMocHelpers::SlotData<void()>(32, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewOilPaintFilter'
+        QtMocHelpers::SlotData<void(int)>(33, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 28 },
+        }}),
+        // Slot 'onApplySkewFilter'
+        QtMocHelpers::SlotData<void()>(34, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'onPreviewSkewFilter'
+        QtMocHelpers::SlotData<void(double)>(35, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Double, 36 },
+        }}),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -78,11 +176,38 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         switch (_id) {
         case 0: _t->openImage(); break;
         case 1: _t->saveImage(); break;
-        case 2: _t->exitApp(); break;
+        case 2: _t->showApplyCancelButtons(); break;
+        case 3: _t->hideApplyCancelButtons(); break;
+        case 4: _t->exitApp(); break;
+        case 5: _t->onLoadImage(); break;
+        case 6: _t->onSaveImage(); break;
+        case 7: _t->onResetImage(); break;
+        case 8: _t->onUndo(); break;
+        case 9: _t->onRedo(); break;
+        case 10: _t->onSelectTool(); break;
+        case 11: _t->onResizeTool(); break;
+        case 12: _t->onCropTool(); break;
+        case 13: _t->onCanvasVerticalReflection(); break;
+        case 14: _t->onCanvasHorizontalReflection(); break;
+        case 15: _t->onCanvasYellowFilter(); break;
+        case 16: _t->onCanvasPurpleFilter(); break;
+        case 17: _t->onCanvasInfraRedFilter(); break;
+        case 18: _t->onCanvasUndo(); break;
+        case 19: _t->onCanvasRedo(); break;
+        case 20: _t->onCanvasReset(); break;
+        case 21: _t->onApplyBnWFilter(); break;
+        case 22: _t->onPreviewBnWFilter((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 23: _t->onApplyBlurFilter(); break;
+        case 24: _t->onPreviewBlurFilter((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 25: _t->onApplyLightOrDarkFilter(); break;
+        case 26: _t->onPreviewLightOrDarkFilter((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 27: _t->onApplyOilPaintFilter(); break;
+        case 28: _t->onPreviewOilPaintFilter((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 29: _t->onApplySkewFilter(); break;
+        case 30: _t->onPreviewSkewFilter((*reinterpret_cast< std::add_pointer_t<double>>(_a[1]))); break;
         default: ;
         }
     }
-    (void)_a;
 }
 
 const QMetaObject *MainWindow::metaObject() const
@@ -104,14 +229,14 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 3)
+        if (_id < 31)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 3;
+        _id -= 31;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 3)
+        if (_id < 31)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 3;
+        _id -= 31;
     }
     return _id;
 }

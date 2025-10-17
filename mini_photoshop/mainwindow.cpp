@@ -18,6 +18,7 @@
 #include <QToolBar>
 #include <QVBoxLayout>
 #include <QComboBox>
+#include <QTimer>
 
 extern void merge(Image &image1, Image &image2, Image &outputImage, float alpha, char mode);
 extern void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, double blendFactor);
@@ -80,7 +81,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     });
 
     connect(applyButton, &QPushButton::clicked, this, [this]() {
-        QRect r = canvas->m_cropRect.toRect(); // Added .toRect()
 
         connect(applyButton, &QPushButton::clicked, this, [this]() {
             canvas->applyCrop();
@@ -119,7 +119,7 @@ void MainWindow::createMenu() {
 
     QAction *exitAction = fileMenu->addAction("E&xit");
     exitAction->setShortcut(QKeySequence::Quit);
-    connect(exitAction, &QAction::triggered, this, &QWidget::close);
+    connect(exitAction, &QAction::triggered, this, &MainWindow::exitApp);
 
     QMenu *editMenu = menuBar->addMenu("&Edit");
 
@@ -166,8 +166,7 @@ void MainWindow::createMenu() {
                 QDialog dialog(this);
                 dialog.setWindowTitle("Frame");
 
-                QVBoxLayout *layout = new QVBoxLayout(
-                    &dialog);
+                QVBoxLayout *layout = new QVBoxLayout(&dialog);
                 // Frame
                 QGroupBox *frameGroup = new QGroupBox("Add Frame", &dialog);
                 QGridLayout *frameLayout = new QGridLayout(frameGroup);
@@ -223,11 +222,11 @@ void MainWindow::createMenu() {
                 connect(&dialog, &QDialog::rejected, this,
                         [this]() { canvas->cancelChanges(); });
                 dialog.exec();
-    });
+            });
 
-    QAction *reflectVAction = filtersMenu->addAction("&Veritical Flip");
+    QAction *reflectVAction = filtersMenu->addAction("&Vertical Flip");
     connect(reflectVAction, &QAction::triggered, this,
-            [this]() { canvas->applyVeriticalReflection(); });
+            [this]() { canvas->applyVerticalReflection(); });
 
     QAction *reflectHAction = filtersMenu->addAction("&Horizontal Flip");
     connect(reflectHAction, &QAction::triggered, this,
@@ -238,6 +237,58 @@ void MainWindow::createMenu() {
     QAction *edgesAction = filtersMenu->addAction("&Edge Detection");
     connect(edgesAction, &QAction::triggered, this,
             [this]() { canvas->applyEdgeDetection(); });
+
+    QAction *sharpenAction = filtersMenu->addAction("&Sharpen");
+    sharpenAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_H));
+    connect(sharpenAction, &QAction::triggered, this,
+            [this]() { canvas->applySharpenFilter(); });
+
+    filtersMenu->addSeparator();
+
+    QAction *pixelSortAction = filtersMenu->addAction("&Pixel Sort");
+    connect(pixelSortAction, &QAction::triggered, this, [this]() {
+        canvas->saveState();
+        QDialog dialog(this);
+        dialog.setWindowTitle("Pixel Sort Effect");
+
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
+        QSlider *slider = new QSlider(Qt::Horizontal);
+        QLabel *label = new QLabel("Threshold:", &dialog);
+
+        slider->setRange(0, 255);
+        slider->setValue(128);
+
+        canvas->applyPixelSortFilter(slider->value(), CanvasWidget::FilterMode::Preview);
+
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
+        QPushButton *applyBtn = new QPushButton("Apply", &dialog);
+        QPushButton *cancelBtn = new QPushButton("Cancel", &dialog);
+
+        buttonsRow->addWidget(applyBtn);
+        buttonsRow->addWidget(cancelBtn);
+
+        layout->addWidget(label);
+        layout->addWidget(slider);
+        layout->addLayout(buttonsRow);
+
+        connect(applyBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->commitChanges();
+            dialog.accept();
+        });
+
+        connect(cancelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->cancelChanges();
+            dialog.reject();
+        });
+
+        connect(slider, &QSlider::valueChanged, this, [this](int value) {
+            canvas->applyPixelSortFilter(value, CanvasWidget::FilterMode::Preview);
+        });
+
+        connect(&dialog, &QDialog::rejected, this,
+                [this]() { canvas->cancelChanges(); });
+        dialog.exec();
+    });
 
     QMenu *helpMenu = menuBar->addMenu("&Help");
     QAction *aboutAction = helpMenu->addAction("&About");
@@ -280,7 +331,7 @@ void MainWindow::createToolBar() {
     connect(moveAct, &QAction::triggered, this,
             [this]() { canvas->setTool(CanvasWidget::ToolMode::Move); });
 
-    QAction *lightenAct = new QAction("Birghten Image", this);
+    QAction *lightenAct = new QAction("Brighten Image", this);
     lightenAct->setToolTip("Enhance reds and greens");
     lightenAct->setCheckable(false);
 
@@ -289,22 +340,26 @@ void MainWindow::createToolBar() {
         QDialog dialog(this);
         dialog.setWindowTitle("Adjust the green level");
 
-        QVBoxLayout *layout = new QVBoxLayout(
-            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
         QLabel *label = new QLabel("reds & greens :", &dialog);
 
         slider->setRange(-100, 100);
         slider->setValue(20);
+
+        // ADD TIMER FOR 100MS DELAY
+        QTimer *timer = new QTimer(&dialog);
+        timer->setSingleShot(true);
+
         canvas->applyYellowFilter(slider->value(),
                                   CanvasWidget::FilterMode::Preview);
-        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
 
         QPushButton *applyBtn = new QPushButton("Apply", &dialog);
-        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+        QPushButton *cancelBtn = new QPushButton("Cancel", &dialog);
 
         buttonsRow->addWidget(applyBtn);
-        buttonsRow->addWidget(canelBtn);
+        buttonsRow->addWidget(cancelBtn);
 
         layout->addWidget(label);
         layout->addWidget(slider);
@@ -315,13 +370,18 @@ void MainWindow::createToolBar() {
             dialog.accept();
         });
 
-        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        connect(cancelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
             canvas->cancelChanges();
             dialog.reject();
         });
 
-        connect(slider, &QSlider::valueChanged, this, [this](int value) {
-            canvas->applyYellowFilter(value, CanvasWidget::FilterMode::Preview);
+        // USE TIMER INSTEAD OF DIRECT CONNECTION
+        connect(slider, &QSlider::valueChanged, timer, [timer]() {
+            timer->start(100);
+        });
+
+        connect(timer, &QTimer::timeout, this, [this, slider]() {
+            canvas->applyYellowFilter(slider->value(), CanvasWidget::FilterMode::Preview);
         });
 
         connect(&dialog, &QDialog::rejected, this,
@@ -338,22 +398,26 @@ void MainWindow::createToolBar() {
         QDialog dialog(this);
         dialog.setWindowTitle("reds and blues");
 
-        QVBoxLayout *layout = new QVBoxLayout(
-            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
         QLabel *label = new QLabel(":", &dialog);
 
         slider->setRange(-100, 100);
         slider->setValue(30);
+
+        // ADD TIMER FOR 100MS DELAY
+        QTimer *timer = new QTimer(&dialog);
+        timer->setSingleShot(true);
+
         canvas->applyPurpleFilter(slider->value(),
                                   CanvasWidget::FilterMode::Preview);
-        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
 
         QPushButton *applyBtn = new QPushButton("Apply", &dialog);
-        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+        QPushButton *cancelBtn = new QPushButton("Cancel", &dialog);
 
         buttonsRow->addWidget(applyBtn);
-        buttonsRow->addWidget(canelBtn);
+        buttonsRow->addWidget(cancelBtn);
 
         layout->addWidget(label);
         layout->addWidget(slider);
@@ -364,13 +428,18 @@ void MainWindow::createToolBar() {
             dialog.accept();
         });
 
-        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        connect(cancelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
             canvas->cancelChanges();
             dialog.reject();
         });
 
-        connect(slider, &QSlider::valueChanged, this, [this](int value) {
-            canvas->applyPurpleFilter(value, CanvasWidget::FilterMode::Preview);
+        // USE TIMER INSTEAD OF DIRECT CONNECTION
+        connect(slider, &QSlider::valueChanged, timer, [timer]() {
+            timer->start(100);
+        });
+
+        connect(timer, &QTimer::timeout, this, [this, slider]() {
+            canvas->applyPurpleFilter(slider->value(), CanvasWidget::FilterMode::Preview);
         });
 
         connect(&dialog, &QDialog::rejected, this,
@@ -387,23 +456,26 @@ void MainWindow::createToolBar() {
         QDialog dialog(this);
         dialog.setWindowTitle("Black & White ");
 
-        QVBoxLayout *layout = new QVBoxLayout(
-            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
         QLabel *label = new QLabel("Threshold:", &dialog);
 
         slider->setRange(0, 255);
         slider->setValue(128);
 
+        // ADD TIMER FOR 100MS DELAY
+        QTimer *timer = new QTimer(&dialog);
+        timer->setSingleShot(true);
+
         canvas->applyBlackAndWhiteFilter(slider->value(),
                                          CanvasWidget::FilterMode::Preview);
-        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
 
         QPushButton *applyBtn = new QPushButton("Apply", &dialog);
-        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+        QPushButton *cancelBtn = new QPushButton("Cancel", &dialog);
 
         buttonsRow->addWidget(applyBtn);
-        buttonsRow->addWidget(canelBtn);
+        buttonsRow->addWidget(cancelBtn);
 
         layout->addWidget(label);
         layout->addWidget(slider);
@@ -414,13 +486,18 @@ void MainWindow::createToolBar() {
             dialog.accept();
         });
 
-        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        connect(cancelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
             canvas->cancelChanges();
             dialog.reject();
         });
 
-        connect(slider, &QSlider::valueChanged, this, [this](int value) {
-            canvas->applyBlackAndWhiteFilter(value,
+        // USE TIMER INSTEAD OF DIRECT CONNECTION
+        connect(slider, &QSlider::valueChanged, timer, [timer]() {
+            timer->start(100);
+        });
+
+        connect(timer, &QTimer::timeout, this, [this, slider]() {
+            canvas->applyBlackAndWhiteFilter(slider->value(),
                                              CanvasWidget::FilterMode::Preview);
         });
 
@@ -438,21 +515,25 @@ void MainWindow::createToolBar() {
         QDialog dialog(this);
         dialog.setWindowTitle("Adjust Blur");
 
-        QVBoxLayout *layout = new QVBoxLayout(
-            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
         QLabel *label = new QLabel("Blur strength:", &dialog);
 
         slider->setRange(1, 15);
         slider->setValue(3);
+
+        // ADD TIMER FOR 100MS DELAY
+        QTimer *timer = new QTimer(&dialog);
+        timer->setSingleShot(true);
+
         canvas->applyBlurFilter(slider->value(), CanvasWidget::FilterMode::Preview);
-        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
 
         QPushButton *applyBtn = new QPushButton("Apply", &dialog);
-        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+        QPushButton *cancelBtn = new QPushButton("Cancel", &dialog);
 
         buttonsRow->addWidget(applyBtn);
-        buttonsRow->addWidget(canelBtn);
+        buttonsRow->addWidget(cancelBtn);
 
         layout->addWidget(label);
         layout->addWidget(slider);
@@ -463,13 +544,18 @@ void MainWindow::createToolBar() {
             dialog.accept();
         });
 
-        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        connect(cancelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
             canvas->cancelChanges();
             dialog.reject();
         });
 
-        connect(slider, &QSlider::valueChanged, this, [this](int value) {
-            canvas->applyBlurFilter(value, CanvasWidget::FilterMode::Preview);
+        // USE TIMER INSTEAD OF DIRECT CONNECTION
+        connect(slider, &QSlider::valueChanged, timer, [timer]() {
+            timer->start(100);
+        });
+
+        connect(timer, &QTimer::timeout, this, [this, slider]() {
+            canvas->applyBlurFilter(slider->value(), CanvasWidget::FilterMode::Preview);
         });
 
         connect(&dialog, &QDialog::rejected, this,
@@ -486,21 +572,24 @@ void MainWindow::createToolBar() {
         QDialog dialog(this);
         dialog.setWindowTitle("Adjust Brightness");
 
-        QVBoxLayout *layout = new QVBoxLayout(
-            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
         QLabel *label = new QLabel("Brightness:", &dialog);
 
         slider->setRange(-100, 100);
         slider->setValue(0);
 
-        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+        // ADD TIMER FOR 100MS DELAY
+        QTimer *timer = new QTimer(&dialog);
+        timer->setSingleShot(true);
+
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
 
         QPushButton *applyBtn = new QPushButton("Apply", &dialog);
-        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+        QPushButton *cancelBtn = new QPushButton("Cancel", &dialog);
 
         buttonsRow->addWidget(applyBtn);
-        buttonsRow->addWidget(canelBtn);
+        buttonsRow->addWidget(cancelBtn);
 
         layout->addWidget(label);
         layout->addWidget(slider);
@@ -511,13 +600,18 @@ void MainWindow::createToolBar() {
             dialog.accept();
         });
 
-        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        connect(cancelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
             canvas->cancelChanges();
             dialog.reject();
         });
 
-        connect(slider, &QSlider::valueChanged, this, [this](int value) {
-            canvas->applyLightOrDarkFilter(value, CanvasWidget::FilterMode::Preview);
+        // USE TIMER INSTEAD OF DIRECT CONNECTION
+        connect(slider, &QSlider::valueChanged, timer, [timer]() {
+            timer->start(100);
+        });
+
+        connect(timer, &QTimer::timeout, this, [this, slider]() {
+            canvas->applyLightOrDarkFilter(slider->value(), CanvasWidget::FilterMode::Preview);
         });
 
         connect(&dialog, &QDialog::rejected, this,
@@ -525,31 +619,39 @@ void MainWindow::createToolBar() {
         dialog.exec();
     });
 
-
-    QAction *oilAct = new QAction("Oil Paint", this);
-    oilAct->setToolTip("Simulate oil painting of the image");
+    QAction *oilAct = new QAction("Oil Painting", this);
+    oilAct->setToolTip("Apply an oil painting effect");
     oilAct->setCheckable(false);
 
     connect(oilAct, &QAction::triggered, this, [this]() {
         canvas->saveState();
         QDialog dialog(this);
-        dialog.setWindowTitle("Oil Piant");
+        dialog.setWindowTitle("Oil Painting Effect");
 
-        QVBoxLayout *layout = new QVBoxLayout(
-            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
-        QLabel *label = new QLabel("paint level:", &dialog);
+        QLabel *label = new QLabel("Intensity:", &dialog);
 
-        slider->setRange(1,20);
-        slider->setValue(0);
+        slider->setRange(1, 10);
+        slider->setValue(5);
 
-        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+        QTimer *timer = new QTimer(&dialog);
+        timer->setSingleShot(true);
 
+        connect(slider, &QSlider::valueChanged, timer, [timer]() {
+            timer->start(100);
+        });
+
+        connect(timer, &QTimer::timeout, this, [this, slider]() {
+            canvas->applyOilPaintFilter(slider->value(), CanvasWidget::FilterMode::Preview);
+        });
+
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
         QPushButton *applyBtn = new QPushButton("Apply", &dialog);
-        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+        QPushButton *cancelButton = new QPushButton("Cancel", &dialog);
 
         buttonsRow->addWidget(applyBtn);
-        buttonsRow->addWidget(canelBtn);
+        buttonsRow->addWidget(cancelButton);
 
         layout->addWidget(label);
         layout->addWidget(slider);
@@ -560,13 +662,9 @@ void MainWindow::createToolBar() {
             dialog.accept();
         });
 
-        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        connect(cancelButton, &QPushButton::clicked, &dialog, [this, &dialog]() {
             canvas->cancelChanges();
             dialog.reject();
-        });
-
-        connect(slider, &QSlider::valueChanged, this, [this](int value) {
-            canvas->applyOilPaintFilter(value, CanvasWidget::FilterMode::Preview);
         });
 
         connect(&dialog, &QDialog::rejected, this,
@@ -583,21 +681,24 @@ void MainWindow::createToolBar() {
         QDialog dialog(this);
         dialog.setWindowTitle("Adjust Skew");
 
-        QVBoxLayout *layout = new QVBoxLayout(
-            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
         QLabel *label = new QLabel("Angle:", &dialog);
 
         slider->setRange(0, 89);
         slider->setValue(0);
 
-        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+        // ADD TIMER FOR 100MS DELAY
+        QTimer *timer = new QTimer(&dialog);
+        timer->setSingleShot(true);
+
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
 
         QPushButton *applyBtn = new QPushButton("Apply", &dialog);
-        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+        QPushButton *cancelBtn = new QPushButton("Cancel", &dialog);
 
         buttonsRow->addWidget(applyBtn);
-        buttonsRow->addWidget(canelBtn);
+        buttonsRow->addWidget(cancelBtn);
 
         layout->addWidget(label);
         layout->addWidget(slider);
@@ -608,13 +709,18 @@ void MainWindow::createToolBar() {
             dialog.accept();
         });
 
-        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+        connect(cancelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
             canvas->cancelChanges();
             dialog.reject();
         });
 
-        connect(slider, &QSlider::valueChanged, this, [this](int value) {
-            canvas->applySkewFilter(value, CanvasWidget::FilterMode::Preview);
+        // USE TIMER INSTEAD OF DIRECT CONNECTION
+        connect(slider, &QSlider::valueChanged, timer, [timer]() {
+            timer->start(100);
+        });
+
+        connect(timer, &QTimer::timeout, this, [this, slider]() {
+            canvas->applySkewFilter(slider->value(), CanvasWidget::FilterMode::Preview);
         });
 
         connect(&dialog, &QDialog::rejected, this,
@@ -622,14 +728,84 @@ void MainWindow::createToolBar() {
         dialog.exec();
     });
 
-    QAction *cropAct =  new QAction("Crop",this);
-    cropAct ->setToolTip("Crop The Image");
-    cropAct ->setCheckable(false);
-    connect(cropAct, &QAction::triggered, this, [this](){
-        canvas->saveState();
-        canvas->setTool(CanvasWidget::ToolMode::Crop);
-        canvas->setPreviewMode(true);
+    QAction *sharpenAct = new QAction("Sharpen", this);
+    sharpenAct->setToolTip("Sharpen the image");
+    sharpenAct->setCheckable(false);
+
+    connect(sharpenAct, &QAction::triggered, this, [this]() {
+        canvas->applySharpenFilter();
     });
+
+    QAction *pixelSortAct = new QAction("Pixel Sort", this);
+    pixelSortAct->setToolTip("Apply pixel sorting effect");
+    pixelSortAct->setCheckable(false);
+
+    connect(pixelSortAct, &QAction::triggered, this, [this]() {
+        canvas->saveState();
+        QDialog dialog(this);
+        dialog.setWindowTitle("Pixel Sort Effect");
+
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
+        QSlider *slider = new QSlider(Qt::Horizontal);
+        QLabel *label = new QLabel("Threshold:", &dialog);
+
+        slider->setRange(0, 255);
+        slider->setValue(128);
+
+        // ADD TIMER FOR 100MS DELAY
+        QTimer *timer = new QTimer(&dialog);
+        timer->setSingleShot(true);
+
+        canvas->applyPixelSortFilter(slider->value(), CanvasWidget::FilterMode::Preview);
+
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
+        QPushButton *applyBtn = new QPushButton("Apply", &dialog);
+        QPushButton *cancelBtn = new QPushButton("Cancel", &dialog);
+
+        buttonsRow->addWidget(applyBtn);
+        buttonsRow->addWidget(cancelBtn);
+
+        layout->addWidget(label);
+        layout->addWidget(slider);
+        layout->addLayout(buttonsRow);
+
+        connect(applyBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->commitChanges();
+            dialog.accept();
+        });
+
+        connect(cancelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->cancelChanges();
+            dialog.reject();
+        });
+
+        // USE TIMER INSTEAD OF DIRECT CONNECTION
+        connect(slider, &QSlider::valueChanged, timer, [timer]() {
+            timer->start(100);
+        });
+
+        connect(timer, &QTimer::timeout, this, [this, slider]() {
+            canvas->applyPixelSortFilter(slider->value(), CanvasWidget::FilterMode::Preview);
+        });
+
+        connect(&dialog, &QDialog::rejected, this,
+                [this]() { canvas->cancelChanges(); });
+        dialog.exec();
+    });
+
+    QAction *cropAct = new QAction("Crop", this);
+    cropAct->setToolTip("Crop the image");
+    cropAct->setCheckable(true);
+    connect(cropAct, &QAction::triggered, this, [this, cropAct]() {
+        if (cropAct->isChecked()) {
+            canvas->setTool(CanvasWidget::ToolMode::Crop);
+            showApplyCancelButtons();
+        } else {
+            canvas->setTool(CanvasWidget::ToolMode::None);
+            hideApplyCancelButtons();
+        }
+    });
+
     // Add to toolbar
     tb = addToolBar("Tools");
     tb->addAction(moveAct);
@@ -643,6 +819,8 @@ void MainWindow::createToolBar() {
     tb->addAction(brightAct);
     tb->addAction(oilAct);
     tb->addAction(skewAct);
+    tb->addAction(sharpenAct);
+    tb->addAction(pixelSortAct);
 }
 
 QWidget *MainWindow::createFilterSidePanel() {
@@ -684,13 +862,73 @@ QWidget *MainWindow::createFilterSidePanel() {
 
     QPushButton *btnVFlip = new QPushButton("Veritical Flip", basicGroup);
     connect(btnVFlip, &QPushButton::clicked, this,
-            [this]() { canvas->applyVeriticalReflection(); });
+            [this]() { canvas->applyVerticalReflection(); });
     basicLayout->addWidget(btnVFlip, 2, 1);
 
     QPushButton *btnEdges = new QPushButton("Edge Detection", basicGroup);
     connect(btnEdges, &QPushButton::clicked, this,
             [this]() { canvas->applyEdgeDetection(); });
     basicLayout->addWidget(btnEdges, 3, 0, 1, 2);
+
+    QPushButton *btnSharpen = new QPushButton("Sharpen", basicGroup);
+    connect(btnSharpen, &QPushButton::clicked, this,
+            [this]() { canvas->applySharpenFilter(); });
+    basicLayout->addWidget(btnSharpen, 5, 0, 1, 2);
+
+    QPushButton *btnPixelSort = new QPushButton("Pixel Sort", basicGroup);
+    connect(btnPixelSort, &QPushButton::clicked, this, [this]() {
+        canvas->saveState();
+        QDialog dialog(this);
+        dialog.setWindowTitle("Pixel Sort Effect");
+
+        QVBoxLayout *layout = new QVBoxLayout(&dialog);
+        QSlider *slider = new QSlider(Qt::Horizontal);
+        QLabel *label = new QLabel("Threshold:", &dialog);
+
+        slider->setRange(0, 255);
+        slider->setValue(128);
+
+        // ADD TIMER FOR 100MS DELAY
+        QTimer *timer = new QTimer(&dialog);
+        timer->setSingleShot(true);
+
+        canvas->applyPixelSortFilter(slider->value(), CanvasWidget::FilterMode::Preview);
+
+        QHBoxLayout *buttonsRow = new QHBoxLayout();
+        QPushButton *applyBtn = new QPushButton("Apply", &dialog);
+        QPushButton *cancelBtn = new QPushButton("Cancel", &dialog);
+
+        buttonsRow->addWidget(applyBtn);
+        buttonsRow->addWidget(cancelBtn);
+
+        layout->addWidget(label);
+        layout->addWidget(slider);
+        layout->addLayout(buttonsRow);
+
+        connect(applyBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->commitChanges();
+            dialog.accept();
+        });
+
+        connect(cancelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->cancelChanges();
+            dialog.reject();
+        });
+
+        // USE TIMER INSTEAD OF DIRECT CONNECTION
+        connect(slider, &QSlider::valueChanged, timer, [timer]() {
+            timer->start(100);
+        });
+
+        connect(timer, &QTimer::timeout, this, [this, slider]() {
+            canvas->applyPixelSortFilter(slider->value(), CanvasWidget::FilterMode::Preview);
+        });
+
+        connect(&dialog, &QDialog::rejected, this,
+                [this]() { canvas->cancelChanges(); });
+        dialog.exec();
+    });
+    basicLayout->addWidget(btnPixelSort, 6, 0, 1, 2);
 
     QPushButton *btnNoise = new QPushButton("Tv Noise", basicGroup);
     connect(btnNoise, &QPushButton::clicked, this,
@@ -1462,4 +1700,68 @@ QPixmap MainWindow::imageToPixmap(const Image &img)
     return QPixmap::fromImage(qImg);
 }
 
+void MainWindow::showApplyCancelButtons() {
+    if (applyButton && cancelButton) {
+        applyButton->show();
+        cancelButton->show();
+    }
+}
+
+void MainWindow::hideApplyCancelButtons() {
+    if (applyButton && cancelButton) {
+        applyButton->hide();
+        cancelButton->hide();
+    }
+}
+
+MainWindow::~MainWindow() { }
+
+void MainWindow::onLoadImage() { openImage(); }
+void MainWindow::onSaveImage() { saveImage(); }
+void MainWindow::onResetImage() { if (canvas) canvas->resetImage(); }
+void MainWindow::onUndo() { if (canvas) canvas->undo(); }
+void MainWindow::onRedo() { if (canvas) canvas->redo(); }
+void MainWindow::onSelectTool() { if (canvas) canvas->setTool(CanvasWidget::ToolMode::Select); }
+void MainWindow::onResizeTool() { if (canvas) canvas->setTool(CanvasWidget::ToolMode::Resize); }
+void MainWindow::onCropTool() { if (canvas) canvas->setTool(CanvasWidget::ToolMode::Crop); }
+void MainWindow::onCanvasVerticalReflection() { if (canvas) canvas->applyVerticalReflection(); }
+void MainWindow::onCanvasHorizontalReflection() { if (canvas) canvas->applyHorizontalReflection(); }
+void MainWindow::onCanvasYellowFilter() {
+    if (canvas) {
+        canvas->saveState();
+        canvas->applyYellowFilter(20, CanvasWidget::FilterMode::Increment);
+        canvas->commitChanges();
+    }
+}
+void MainWindow::onCanvasPurpleFilter() {
+    if (canvas) {
+        canvas->saveState();
+        canvas->applyPurpleFilter(30, CanvasWidget::FilterMode::Increment);
+        canvas->commitChanges();
+    }
+}
+void MainWindow::onCanvasInfraRedFilter() { if (canvas) canvas->applyInfraRedFilter(); }
+void MainWindow::onCanvasUndo() { if (canvas) canvas->undo(); }
+void MainWindow::onCanvasRedo() { if (canvas) canvas->redo(); }
+void MainWindow::onCanvasReset() { if (canvas) canvas->resetImage(); }
+void MainWindow::onApplyBnWFilter() { if (canvas) canvas->commitChanges(); }
+void MainWindow::onPreviewBnWFilter(int threshold) {
+    if (canvas) canvas->applyBlackAndWhiteFilter(threshold, CanvasWidget::FilterMode::Preview);
+}
+void MainWindow::onApplyBlurFilter() { if (canvas) canvas->commitChanges(); }
+void MainWindow::onPreviewBlurFilter(int kernelSize) {
+    if (canvas) canvas->applyBlurFilter(kernelSize, CanvasWidget::FilterMode::Preview);
+}
+void MainWindow::onApplyLightOrDarkFilter() { if (canvas) canvas->commitChanges(); }
+void MainWindow::onPreviewLightOrDarkFilter(int percent) {
+    if (canvas) canvas->applyLightOrDarkFilter(percent, CanvasWidget::FilterMode::Preview);
+}
+void MainWindow::onApplyOilPaintFilter() { if (canvas) canvas->commitChanges(); }
+void MainWindow::onPreviewOilPaintFilter(int kernelSize) {
+    if (canvas) canvas->applyOilPaintFilter(kernelSize, CanvasWidget::FilterMode::Preview);
+}
+void MainWindow::onApplySkewFilter() { if (canvas) canvas->commitChanges(); }
+void MainWindow::onPreviewSkewFilter(double degree) {
+    if (canvas) canvas->applySkewFilter(degree, CanvasWidget::FilterMode::Preview);
+}
 void MainWindow::exitApp() { close(); }

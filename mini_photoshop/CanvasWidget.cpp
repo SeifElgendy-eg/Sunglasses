@@ -8,19 +8,22 @@
 #include <random>
 #include <vector>
 
-// Constants
+// Constants for modern dark theme
 const QColor WIDGET_BACKGROUND_COLOR = QColor("#1e1e1e");
 const QColor CHECKERBOARD_COLOR_1 = QColor("#2b2b2b");
 const QColor CHECKERBOARD_COLOR_2 = QColor("#3a3a3a");
 const int CHECKERBOARD_TILE_SIZE = 20;
 
+// ============================================================================
 // Constructor & Setup
+// ============================================================================
 
 CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent) {
     setMouseTracking(true);
     setFocusPolicy(Qt::StrongFocus);
     setAutoFillBackground(false);
 
+    // Create checkerboard pattern for transparent background
     QPixmap tile(CHECKERBOARD_TILE_SIZE * 2, CHECKERBOARD_TILE_SIZE * 2);
     tile.fill(Qt::transparent);
     QPainter p(&tile);
@@ -37,6 +40,12 @@ void CanvasWidget::setImage(const QImage &img) {
     m_image = img;
     o_image = img;
     r_image = img;
+
+    start_x = 0;
+    start_y = 0;
+    end_x = m_image.width();
+    end_y = m_image.height();
+
     resetView();
 }
 
@@ -47,6 +56,7 @@ void CanvasWidget::setTool(ToolMode tool) {
     m_activeHandle = Handle::None;
 
     if (tool == ToolMode::Crop) {
+        m_cropRectF = m_image.rect();
         m_cropRect = m_image.rect();
         setPreviewMode(true);
     } else {
@@ -62,6 +72,7 @@ void CanvasWidget::resetView() {
     qreal scaleX = (qreal)width() / m_image.width();
     qreal scaleY = (qreal)height() / m_image.height();
     m_scale = qMin(scaleX, scaleY) * 0.95;
+    m_cropRectF = m_image.rect();
     m_cropRect = m_image.rect();
     m_selectionRect = QRectF();
 
@@ -79,18 +90,23 @@ void CanvasWidget::setPreviewMode(bool enabled) {
     update();
 }
 
-
+// ============================================================================
 // Event Handlers
+// ============================================================================
 
 void CanvasWidget::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
+
+    // Draw dark background and checkerboard
     painter.fillRect(rect(), WIDGET_BACKGROUND_COLOR);
     m_checkerboardBrush.setTransform(painter.transform().inverted());
     painter.fillRect(rect(), m_checkerboardBrush);
+
     if (m_image.isNull()) return;
 
+    // Apply view transformation
     painter.translate(rect().center());
     painter.scale(m_scale, m_scale);
     painter.translate(-m_panOffset);
@@ -112,13 +128,19 @@ void CanvasWidget::paintEvent(QPaintEvent *event) {
     }
 }
 
-void CanvasWidget::resizeEvent(QResizeEvent *event) { QWidget::resizeEvent(event); }
+void CanvasWidget::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+}
 
 void CanvasWidget::wheelEvent(QWheelEvent *event) {
     if (m_image.isNull()) return;
-    qreal oldScale = m_scale;
-    if (event->angleDelta().y() > 0) m_scale *= 1.25; else m_scale /= 1.25;
+    if (event->angleDelta().y() > 0)
+        m_scale *= 1.25;
+    else
+        m_scale /= 1.25;
     m_scale = qBound(0.01, m_scale, 100.0);
+
+    // Zoom towards mouse cursor
     QPointF mousePos = event->position();
     m_panOffset = screenToImage(mousePos) - (mousePos - rect().center()) / m_scale;
     update();
@@ -126,13 +148,17 @@ void CanvasWidget::wheelEvent(QWheelEvent *event) {
 
 void CanvasWidget::mousePressEvent(QMouseEvent *event) {
     if (m_image.isNull()) return;
-    if (event->button() == Qt::MiddleButton || (event->button() == Qt::LeftButton && m_tool == ToolMode::Move)) {
+
+    // Middle mouse or Move tool = panning
+    if (event->button() == Qt::MiddleButton ||
+        (event->button() == Qt::LeftButton && m_tool == ToolMode::Move)) {
         m_isPanning = true;
         m_panLastPos = event->position();
         setCursor(Qt::ClosedHandCursor);
         event->accept();
         return;
     }
+
     if (event->button() == Qt::LeftButton) {
         QPointF imagePos = screenToImage(event->position());
         m_activeHandle = getHandleAt(imagePos);
@@ -146,8 +172,8 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         } else if (m_tool == ToolMode::Crop) {
             m_isDraggingTool = true;
             m_activeHandle = Handle::BottomRight;
-            m_cropRect.setTopLeft(imagePos);
-            m_cropRect.setSize(QSizeF(0, 0));
+            m_cropRectF.setTopLeft(imagePos);
+            m_cropRectF.setSize(QSizeF(0, 0));
         } else if (m_tool == ToolMode::Select) {
             m_isDraggingTool = true;
             m_dragStartPos_image = imagePos;
@@ -165,6 +191,7 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
         update();
         return;
     }
+
     if (m_isDraggingTool) {
         QPointF currentImagePos = screenToImage(event->position());
 
@@ -177,14 +204,19 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
         QPointF delta = currentImagePos - m_dragStartPos_image;
 
         if (m_tool == ToolMode::Resize && m_activeHandle == Handle::BottomRight) {
+            // Calculate new dimensions relative to the original image size
             int newWidth = qMax(10, (int)(o_image.width() + delta.x()));
             int newHeight = qMax(10, (int)(o_image.height() + delta.y()));
             applyResizeTool(newWidth, newHeight);
         }
+
         else if (m_tool == ToolMode::Crop) {
-            QRectF newRect = m_cropRect;
+            QRectF newRect = m_cropRectF;
             switch (m_activeHandle) {
-            case Handle::Move: newRect.translate(delta); m_dragStartPos_image = currentImagePos; break;
+            case Handle::Move:
+                newRect.translate(delta);
+                m_dragStartPos_image = currentImagePos;
+                break;
             case Handle::Top: newRect.setTop(currentImagePos.y()); break;
             case Handle::Bottom: newRect.setBottom(currentImagePos.y()); break;
             case Handle::Left: newRect.setLeft(currentImagePos.x()); break;
@@ -195,7 +227,8 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
             case Handle::BottomRight: newRect.setBottomRight(currentImagePos); break;
             default: break;
             }
-            m_cropRect = newRect.normalized();
+            m_cropRectF = newRect.normalized();
+            m_cropRect = m_cropRectF.toRect();
         }
         update();
     } else {
@@ -246,32 +279,37 @@ void CanvasWidget::keyPressEvent(QKeyEvent *event) {
     }
 }
 
+// ============================================================================
 // Drawing, Coordinate, and Cursor Helpers
+// ============================================================================
 
 void CanvasWidget::drawCropTool(QPainter &painter) {
     painter.save();
     QPainterPath path;
     path.addRect(m_image.rect());
-    path.addRect(m_cropRect);
+    path.addRect(m_cropRectF);
     painter.setBrush(QColor(0, 0, 0, 150));
     painter.drawPath(path);
+
     const qreal penWidth = 2.0 / m_scale;
     painter.setPen(QPen(Qt::white, penWidth));
     painter.setBrush(Qt::NoBrush);
-    painter.drawRect(m_cropRect);
+    painter.drawRect(m_cropRectF);
+
     const qreal handleSize = 10.0 / m_scale;
     painter.setBrush(Qt::white);
-    painter.drawRect(QRectF(m_cropRect.topLeft(), QSizeF(handleSize, handleSize)));
-    painter.drawRect(QRectF(m_cropRect.topRight() - QPointF(handleSize, 0), QSizeF(handleSize, handleSize)));
-    painter.drawRect(QRectF(m_cropRect.bottomLeft() - QPointF(0, handleSize), QSizeF(handleSize, handleSize)));
-    painter.drawRect(QRectF(m_cropRect.bottomRight() - QPointF(handleSize, handleSize), QSizeF(handleSize, handleSize)));
+    painter.drawRect(QRectF(m_cropRectF.topLeft(), QSizeF(handleSize, handleSize)));
+    painter.drawRect(QRectF(m_cropRectF.topRight() - QPointF(handleSize, 0), QSizeF(handleSize, handleSize)));
+    painter.drawRect(QRectF(m_cropRectF.bottomLeft() - QPointF(0, handleSize), QSizeF(handleSize, handleSize)));
+    painter.drawRect(QRectF(m_cropRectF.bottomRight() - QPointF(handleSize, handleSize), QSizeF(handleSize, handleSize)));
     painter.restore();
 }
 
 void CanvasWidget::drawResizeHandle(QPainter &painter) {
     painter.save();
     const qreal handleSize = 15.0 / m_scale;
-    QRectF handleRect(m_image.rect().bottomRight() - QPointF(handleSize/2, handleSize/2), QSizeF(handleSize, handleSize));
+    QRectF handleRect(m_image.rect().bottomRight() - QPointF(handleSize/2, handleSize/2),
+                      QSizeF(handleSize, handleSize));
     painter.setPen(QPen(Qt::white, 2.0 / m_scale));
     painter.setBrush(Qt::white);
     painter.drawEllipse(handleRect);
@@ -285,25 +323,33 @@ QPointF CanvasWidget::screenToImage(const QPointF &p_screen) const {
 
 CanvasWidget::Handle CanvasWidget::getHandleAt(const QPointF &p_image) const {
     const qreal handleSize = 15.0 / m_scale;
+
     if (m_tool == ToolMode::Crop && m_previewMode) {
-        QRectF top(m_cropRect.left(), m_cropRect.top() - handleSize/2, m_cropRect.width(), handleSize);
-        QRectF bottom(m_cropRect.left(), m_cropRect.bottom() - handleSize/2, m_cropRect.width(), handleSize);
-        QRectF left(m_cropRect.left() - handleSize/2, m_cropRect.top(), handleSize, m_cropRect.height());
-        QRectF right(m_cropRect.right() - handleSize/2, m_cropRect.top(), handleSize, m_cropRect.height());
-        if (QRectF(m_cropRect.topLeft(), QSizeF(handleSize,handleSize)).contains(p_image)) return Handle::TopLeft;
-        if (QRectF(m_cropRect.topRight() - QPointF(handleSize,0), QSizeF(handleSize,handleSize)).contains(p_image)) return Handle::TopRight;
-        if (QRectF(m_cropRect.bottomLeft() - QPointF(0,handleSize), QSizeF(handleSize,handleSize)).contains(p_image)) return Handle::BottomLeft;
-        if (QRectF(m_cropRect.bottomRight() - QPointF(handleSize,handleSize), QSizeF(handleSize,handleSize)).contains(p_image)) return Handle::BottomRight;
+        QRectF top(m_cropRectF.left(), m_cropRectF.top() - handleSize/2, m_cropRectF.width(), handleSize);
+        QRectF bottom(m_cropRectF.left(), m_cropRectF.bottom() - handleSize/2, m_cropRectF.width(), handleSize);
+        QRectF left(m_cropRectF.left() - handleSize/2, m_cropRectF.top(), handleSize, m_cropRectF.height());
+        QRectF right(m_cropRectF.right() - handleSize/2, m_cropRectF.top(), handleSize, m_cropRectF.height());
+
+        if (QRectF(m_cropRectF.topLeft(), QSizeF(handleSize,handleSize)).contains(p_image))
+            return Handle::TopLeft;
+        if (QRectF(m_cropRectF.topRight() - QPointF(handleSize,0), QSizeF(handleSize,handleSize)).contains(p_image))
+            return Handle::TopRight;
+        if (QRectF(m_cropRectF.bottomLeft() - QPointF(0,handleSize), QSizeF(handleSize,handleSize)).contains(p_image))
+            return Handle::BottomLeft;
+        if (QRectF(m_cropRectF.bottomRight() - QPointF(handleSize,handleSize), QSizeF(handleSize,handleSize)).contains(p_image))
+            return Handle::BottomRight;
         if (top.contains(p_image)) return Handle::Top;
         if (bottom.contains(p_image)) return Handle::Bottom;
         if (left.contains(p_image)) return Handle::Left;
         if (right.contains(p_image)) return Handle::Right;
-        if (m_cropRect.contains(p_image)) return Handle::Move;
+        if (m_cropRectF.contains(p_image)) return Handle::Move;
     }
     else if (m_tool == ToolMode::Resize) {
-        QRectF bottomRightHandle(m_image.rect().bottomRight() - QPointF(handleSize, handleSize), QSizeF(handleSize*2, handleSize*2));
+        QRectF bottomRightHandle(m_image.rect().bottomRight() - QPointF(handleSize, handleSize),
+                                 QSizeF(handleSize*2, handleSize*2));
         if(bottomRightHandle.contains(p_image)) return Handle::BottomRight;
-    } else if (m_tool == ToolMode::Move) {
+    }
+    else if (m_tool == ToolMode::Move) {
         if (m_image.rect().contains(p_image.toPoint())) {
             return Handle::Move;
         }
@@ -319,6 +365,7 @@ void CanvasWidget::updateCursor(const QPoint& p_screen) {
     QPointF p_image = screenToImage(p_screen);
     Handle handle = getHandleAt(p_image);
     Qt::CursorShape cursor = Qt::ArrowCursor;
+
     switch (m_tool) {
     case ToolMode::None: cursor = Qt::ArrowCursor; break;
     case ToolMode::Select: cursor = Qt::CrossCursor; break;
@@ -341,7 +388,9 @@ void CanvasWidget::updateCursor(const QPoint& p_screen) {
     setCursor(cursor);
 }
 
+// ============================================================================
 // State Management (Undo/Redo)
+// ============================================================================
 
 void CanvasWidget::saveState() {
     m_undoStack.push({m_image, o_image});
@@ -396,20 +445,34 @@ void CanvasWidget::cancelChanges() {
     update();
 }
 
+// ============================================================================
 // Filters and Tools
+// ============================================================================
 
 void CanvasWidget::applyCrop() {
-    if(m_image.isNull() || !m_cropRect.isValid() || m_cropRect.size().isEmpty()) return;
+    if(m_image.isNull() || !m_cropRectF.isValid() || m_cropRectF.size().isEmpty()) return;
     saveState();
-    m_image = m_image.copy(m_cropRect.toRect().intersected(m_image.rect()));
+    m_image = m_image.copy(m_cropRectF.toRect().intersected(m_image.rect()));
     o_image = m_image;
     setTool(ToolMode::None);
     resetView();
 }
 
+void CanvasWidget::applyCrop(int xs, int xe, int ys, int ye) {
+    if(m_image.isNull()) return;
+    saveState();
+
+    QRect cropRect(xs, ys, xe - xs, ye - ys);
+    cropRect = cropRect.intersected(m_image.rect());
+
+    m_image = m_image.copy(cropRect);
+    o_image = m_image;
+    resetView();
+}
+
 void CanvasWidget::applyResizeTool(int newWidth, int newHeight) {
     if (o_image.isNull()) return;
-    // Changed to IgnoreAspectRatio for free-form scaling
+
     m_image = o_image.scaled(newWidth, newHeight, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     update();
 }
@@ -435,19 +498,39 @@ void CanvasWidget::applyInversionFilter() {
     update();
 }
 
-void CanvasWidget::applyVeriticalReflection() {
+void CanvasWidget::applyVerticalReflection() {
     if (m_image.isNull()) return;
     saveState();
-    m_image = m_image.flipped(Qt::Vertical);
+
+    QImage result = m_image;
+    for (int x = start_x; x < end_x; x++) {
+        for (int y = start_y; y < end_y / 2; y++) {
+            QRgb temp = result.pixel(x, y);
+            result.setPixel(x, y, result.pixel(x, end_y - 1 - y));
+            result.setPixel(x, end_y - 1 - y, temp);
+        }
+    }
+
+    m_image = result;
     update();
-};
+}
 
 void CanvasWidget::applyHorizontalReflection() {
     if (m_image.isNull()) return;
     saveState();
-    m_image = m_image.flipped(Qt::Horizontal);
+
+    QImage result = m_image;
+    for (int x = start_x; x < end_x / 2; x++) {
+        for (int y = start_y; y < end_y; y++) {
+            QRgb temp = result.pixel(x, y);
+            result.setPixel(x, y, result.pixel(end_x - 1 - x, y));
+            result.setPixel(end_x - 1 - x, y, temp);
+        }
+    }
+
+    m_image = result;
     update();
-};
+}
 
 void CanvasWidget::applyYellowFilter(const int intensity, FilterMode mode) {
     if (m_baseImage.isNull()) m_baseImage = m_image;
@@ -516,6 +599,7 @@ void CanvasWidget::applyBlackAndWhiteFilter(int threshold, FilterMode mode) {
     m_image = result;
     update();
 }
+
 void CanvasWidget::applyBlurFilter(int kernelSize, FilterMode mode) {
     if (m_baseImage.isNull()) m_baseImage = m_image;
     if (m_image.isNull()) return;
@@ -547,6 +631,85 @@ void CanvasWidget::applyBlurFilter(int kernelSize, FilterMode mode) {
     update();
 }
 
+void CanvasWidget::applySharpenFilter() {
+    if (m_image.isNull()) return;
+    saveState();
+
+    // Convert QImage to Image for processing
+    Image img = qImageToImage(m_image);
+    Image copy = img;
+
+    const int op[3][3] = {{0, -1, 0},
+                          {-1, 5, -1},
+                          {0, -1, 0}};
+
+    for(int row = 0; row < img.height; row++){
+        for(int col = 0; col < img.width; col++){
+            int r = 0, g = 0, b = 0;
+            for(int i = -1; i <= 1; i++){
+                for(int j = -1; j <= 1; j++){
+                    if(col+j < 0 || row+i < 0 || col+j >= img.width || row+i >= img.height){
+                        continue;
+                    }
+                    r += copy(col+j, row+i, 0) * op[i+1][j+1];
+                    g += copy(col+j, row+i, 1) * op[i+1][j+1];
+                    b += copy(col+j, row+i, 2) * op[i+1][j+1];
+                }
+            }
+            img(col, row, 0) = std::max(std::min(r, 255), 0);
+            img(col, row, 1) = std::max(std::min(g, 255), 0);
+            img(col, row, 2) = std::max(std::min(b, 255), 0);
+        }
+    }
+
+    // Convert back to QImage
+    m_image = imageToQImage(img);
+    update();
+}
+
+void CanvasWidget::applyPixelSortFilter(int threshold, FilterMode mode) {
+    if (m_baseImage.isNull()) m_baseImage = m_image;
+    if (m_image.isNull()) return;
+    if (mode == FilterMode::Increment) saveState();
+
+    // Convert QImage to Image for processing
+    Image image = qImageToImage(m_baseImage);
+
+    for(int col = 0; col < image.width; col++){
+        int curSt = 0;
+        std::vector<std::vector<int>> pxls;
+
+        for(int row = 0; row < image.height; row++){
+            if((image(col, row, 0) + image(col, row, 1) + image(col, row, 2)) / 3 < threshold){
+                std::vector<int> pxl{image(col, row, 0), image(col, row, 1), image(col, row, 2)};
+                pxls.push_back(pxl);
+            }
+            else{
+                if(!pxls.size()){
+                    curSt = row + 1;
+                    continue;
+                }
+                std::sort(pxls.begin(), pxls.end(),
+                          [](std::vector<int> &a, std::vector<int> &b){
+                              return (a[0] + a[1] + a[2]) < (b[0] + b[1] + b[2]);
+                          });
+
+                for(int i = curSt; i < row; i++){
+                    image(col, i, 0) = pxls[i - curSt][0];
+                    image(col, i, 1) = pxls[i - curSt][1];
+                    image(col, i, 2) = pxls[i - curSt][2];
+                }
+                curSt = row + 1;
+                pxls.clear();
+            }
+        }
+    }
+
+    // Convert back to QImage
+    m_image = imageToQImage(image);
+    update();
+}
+
 void CanvasWidget::applyEdgeDetection() {
     if (m_image.isNull()) return;
     saveState();
@@ -571,7 +734,7 @@ void CanvasWidget::applyEdgeDetection() {
     }
     m_image = result;
     update();
-};
+}
 
 void CanvasWidget::applyLightOrDarkFilter(int percent, FilterMode mode) {
     if (m_baseImage.isNull()) m_baseImage = m_image;
@@ -591,7 +754,6 @@ void CanvasWidget::applyLightOrDarkFilter(int percent, FilterMode mode) {
     m_image = result;
     update();
 }
-
 
 void CanvasWidget::rotate(QImage &image, int degrees) {
     if (image.isNull() || degrees == 0) return;
@@ -613,6 +775,7 @@ void CanvasWidget::applyFrameFilter(int thickness, int r, int g, int b) {
     if (m_image.isNull()) return;
     if (m_baseImage.isNull()) m_baseImage = m_image;
     saveState();
+
     QImage result = m_image;
     QPainter p(&result);
     p.setPen(QPen(QColor(r,g,b), thickness * 2));
@@ -624,10 +787,12 @@ void CanvasWidget::applyFrameFilter(int thickness, int r, int g, int b) {
 void CanvasWidget::applyTvNoiseFilter() {
     if (m_image.isNull()) return;
     saveState();
+
     QImage result = m_image;
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> distr(-30, 30);
+
     for (int y = start_y; y < end_y; y++) {
         for (int x = start_x; x < end_x; x++) {
             QColor c = result.pixelColor(x, y);
@@ -645,8 +810,10 @@ void CanvasWidget::applyOilPaintFilter(int kernelSize, FilterMode mode) {
     if (m_image.isNull()) return;
     if (mode == FilterMode::Increment) saveState();
     if (kernelSize < 1) kernelSize = 5;
+
     int radius = kernelSize / 2;
     QImage result = m_baseImage;
+
     for (int y = start_y; y < end_y; y++) {
         for (int x = start_x; x < end_x; x++) {
             std::vector<int> counts(256,0), sumR(256,0), sumG(256,0), sumB(256,0);
@@ -657,12 +824,23 @@ void CanvasWidget::applyOilPaintFilter(int kernelSize, FilterMode mode) {
                     int intensity = qGray(m_baseImage.pixel(nx, ny));
                     QColor c = m_baseImage.pixelColor(nx, ny);
                     counts[intensity]++;
-                    sumR[intensity]+=c.red(); sumG[intensity]+=c.green(); sumB[intensity]+=c.blue();
+                    sumR[intensity]+=c.red();
+                    sumG[intensity]+=c.green();
+                    sumB[intensity]+=c.blue();
                 }
             }
             int maxCount = 0, maxIntensity = 0;
-            for(int i=0; i<256; ++i) if(counts[i]>maxCount){ maxCount=counts[i]; maxIntensity=i; }
-            if(maxCount>0) result.setPixelColor(x,y, QColor(sumR[maxIntensity]/maxCount, sumG[maxIntensity]/maxCount, sumB[maxIntensity]/maxCount));
+            for(int i=0; i<256; ++i) {
+                if(counts[i]>maxCount){
+                    maxCount=counts[i];
+                    maxIntensity=i;
+                }
+            }
+            if(maxCount>0) {
+                result.setPixelColor(x,y, QColor(sumR[maxIntensity]/maxCount,
+                                                  sumG[maxIntensity]/maxCount,
+                                                  sumB[maxIntensity]/maxCount));
+            }
         }
     }
     m_image = result;
@@ -681,7 +859,9 @@ void CanvasWidget::applySkewFilter(double degree, FilterMode mode) {
     update();
 }
 
-bool CanvasWidget::isMImageNull() { return m_image.isNull(); }
+bool CanvasWidget::isMImageNull() {
+    return m_image.isNull();
+}
 
 Image CanvasWidget::qImageToImage(const QImage &qimg) {
     Image img(qimg.width(), qimg.height());
@@ -705,4 +885,3 @@ QImage CanvasWidget::imageToQImage(const Image &img) {
     }
     return qImg;
 }
-

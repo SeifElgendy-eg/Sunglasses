@@ -1,54 +1,135 @@
-#pragma once
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
 #include <QMainWindow>
 #include <QLabel>
 #include <QPushButton>
+#include <QSpinBox>
+#include <QDoubleSpinBox>
+#include <QScrollArea>
+#include <QGroupBox>
+#include <QProgressBar>
+#include <QComboBox>
+#include <QStatusBar>
+#include <QString>
+#include <memory>
+#include "CanvasWidget.h"
 #include "Image_Class.h"
-
-class CanvasWidget; // forward declaration
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
+
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
 
 private slots:
     void openImage();
     void saveImage();
+    void showApplyCancelButtons();
+    void hideApplyCancelButtons();
     void exitApp();
 
+    // File operations
+    void onLoadImage();
+    void onSaveImage();
+    void onResetImage();
+
+    // History
+    void onUndo();
+    void onRedo();
+
+    // Canvas tool operations
+    void onSelectTool();
+    void onResizeTool();
+    void onCropTool();
+
+    // Canvas filter operations - Reflection
+    void onCanvasVerticalReflection();
+    void onCanvasHorizontalReflection();
+
+    // Canvas filter operations - Color
+    void onCanvasYellowFilter();
+    void onCanvasPurpleFilter();
+    void onCanvasInfraRedFilter();
+
+    // Canvas history
+    void onCanvasUndo();
+    void onCanvasRedo();
+    void onCanvasReset();
+
+    // Image filter operations
+    void onApplyBnWFilter();
+    void onPreviewBnWFilter(int threshold);
+    void onApplyBlurFilter();
+    void onPreviewBlurFilter(int kernelSize);
+    void onApplyLightOrDarkFilter();
+    void onPreviewLightOrDarkFilter(int percent);
+    void onApplyOilPaintFilter();
+    void onPreviewOilPaintFilter(int kernelSize);
+    void onApplySkewFilter();
+    void onPreviewSkewFilter(double degree);
+
+
 private:
-    QTabWidget *tabWidget = new QTabWidget();
-
     void createMenu();
-
-    void applyModernStyle();
     void createToolBar();
-    void createSliders();
+    void applyModernStyle();
     QWidget* createFilterSidePanel();
     QWidget* createMorphPanel();
     QWidget* createMergePanel();
-
     void loadTargetImage();
     void loadWeightsImage();
     void loadTargetMergeImage();
+    void applyMergeFilter(double alpha, char mode);
+    QPixmap imageToPixmap(const Image &img);
 
-    QLabel *targetImageLabel;
-    QLabel *weightsImageLabel;
-    QLabel *targetMergeLabel;
-    QLabel *outputMergeLabel;
-
-    std::unique_ptr<Image> targetImage;
-    std::unique_ptr<Image> weightsImage;
-    std::unique_ptr<Image> targetMergeImage;
-    std::unique_ptr<Image> outputMergeImage;
-
+    CanvasWidget *canvas;
+    QTabWidget *tabWidget = new QTabWidget();
     QToolBar *tb;
     QMenuBar *menuBar;
     QPushButton *applyButton;
     QPushButton *cancelButton;
-    QPixmap imageToPixmap(const Image &img);
 
-    void applyMergeFilter (double alpha = 0.4, char mode ='f');
+    // Filter panel widgets
+    QGroupBox *filterPanel;
+    QSlider *bnwThresholdSlider;
+    QPushButton *btnBnw;
+    QSpinBox *blurSpinBox;
+    QPushButton *btnBlur;
+    QSlider *lightOrDarkSlider;
+    QPushButton *btnLightOrDark;
+    QSlider *oilPaintSlider;
+    QPushButton *btnOilPaint;
+    QDoubleSpinBox *skewSpinBox;
+    QPushButton *btnSkew;
 
-    CanvasWidget *canvas = nullptr;
+
+    // Morph panel widgets
+    QGroupBox *morphPanel;
+    QPushButton *btnLoadTarget;
+    QPushButton *btnLoadWeights;
+    QPushButton *btnMorph;
+    QPushButton *btnMorphAnimated;
+    QLabel *targetImageLabel;
+    QLabel *weightsImageLabel;
+    QDoubleSpinBox *blendFactorSpinBox;
+    QSpinBox *animateFramesSpinBox;
+
+    // Merge panel widgets
+    QGroupBox *mergePanel;
+    QPushButton *btnMergeTarget;
+    QPushButton *btnMerge;
+    QLabel *targetMergeLabel;
+    QLabel *outputMergeLabel;
+    QDoubleSpinBox *mergeBlendFactorSpinBox;
+    QComboBox *mergeModeComboBox;
+
+    // Image data
+    std::unique_ptr<Image> targetImage;
+    std::unique_ptr<Image> weightsImage;
+    std::unique_ptr<Image> targetMergeImage;
+    std::unique_ptr<Image> outputMergeImage;
 };
+
+#endif
