@@ -53,12 +53,16 @@ OBJECTS_DIR   = ./
 ####### Files
 
 SOURCES       = ../../CanvasWidget.cpp \
+		../../filters.cpp \
 		../../main.cpp \
-		../../mainwindow.cpp moc_CanvasWidget.cpp \
+		../../mainwindow.cpp \
+		../../stb_image_impl.cpp moc_CanvasWidget.cpp \
 		moc_mainwindow.cpp
 OBJECTS       = CanvasWidget.o \
+		filters.o \
 		main.o \
 		mainwindow.o \
+		stb_image_impl.o \
 		moc_CanvasWidget.o \
 		moc_mainwindow.o
 DIST          = /usr/lib/qt6/mkspecs/features/spec_pre.prf \
@@ -339,6 +343,7 @@ DIST          = /usr/lib/qt6/mkspecs/features/spec_pre.prf \
 		/usr/lib/qt6/mkspecs/features/qt_config.prf \
 		/usr/lib/qt6/mkspecs/linux-g++/qmake.conf \
 		/usr/lib/qt6/mkspecs/features/spec_post.prf \
+		../../.qmake.stash \
 		/usr/lib/qt6/mkspecs/features/exclusive_builds.prf \
 		/usr/lib/qt6/mkspecs/features/toolchain.prf \
 		/usr/lib/qt6/mkspecs/features/default_pre.prf \
@@ -363,9 +368,15 @@ DIST          = /usr/lib/qt6/mkspecs/features/spec_pre.prf \
 		/usr/lib/qt6/mkspecs/features/yacc.prf \
 		/usr/lib/qt6/mkspecs/features/lex.prf \
 		../../../../mini_photoshop.pro ../../CanvasWidget.h \
-		../../mainwindow.h ../../CanvasWidget.cpp \
+		../../Image_Class.h \
+		../../gif.h \
+		../../mainwindow.h \
+		../../stb_image.h \
+		../../stb_image_write.h ../../CanvasWidget.cpp \
+		../../filters.cpp \
 		../../main.cpp \
-		../../mainwindow.cpp
+		../../mainwindow.cpp \
+		../../stb_image_impl.cpp
 QMAKE_TARGET  = mini_photoshop
 DESTDIR       = 
 TARGET        = mini_photoshop
@@ -655,6 +666,7 @@ Makefile: ../../mini_photoshop.pro /usr/lib/qt6/mkspecs/linux-g++/qmake.conf /us
 		/usr/lib/qt6/mkspecs/features/qt_config.prf \
 		/usr/lib/qt6/mkspecs/linux-g++/qmake.conf \
 		/usr/lib/qt6/mkspecs/features/spec_post.prf \
+		.qmake.stash \
 		/usr/lib/qt6/mkspecs/features/exclusive_builds.prf \
 		/usr/lib/qt6/mkspecs/features/toolchain.prf \
 		/usr/lib/qt6/mkspecs/features/default_pre.prf \
@@ -961,6 +973,7 @@ Makefile: ../../mini_photoshop.pro /usr/lib/qt6/mkspecs/linux-g++/qmake.conf /us
 /usr/lib/qt6/mkspecs/features/qt_config.prf:
 /usr/lib/qt6/mkspecs/linux-g++/qmake.conf:
 /usr/lib/qt6/mkspecs/features/spec_post.prf:
+.qmake.stash:
 /usr/lib/qt6/mkspecs/features/exclusive_builds.prf:
 /usr/lib/qt6/mkspecs/features/toolchain.prf:
 /usr/lib/qt6/mkspecs/features/default_pre.prf:
@@ -1003,8 +1016,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /usr/lib/qt6/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents ../../CanvasWidget.h ../../mainwindow.h $(DISTDIR)/
-	$(COPY_FILE) --parents ../../CanvasWidget.cpp ../../main.cpp ../../mainwindow.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents ../../CanvasWidget.h ../../Image_Class.h ../../gif.h ../../mainwindow.h ../../stb_image.h ../../stb_image_write.h $(DISTDIR)/
+	$(COPY_FILE) --parents ../../CanvasWidget.cpp ../../filters.cpp ../../main.cpp ../../mainwindow.cpp ../../stb_image_impl.cpp $(DISTDIR)/
 	$(COPY_FILE) --parents ../../mainwindow.ui $(DISTDIR)/
 
 
@@ -1041,11 +1054,17 @@ compiler_moc_header_make_all: moc_CanvasWidget.cpp moc_mainwindow.cpp
 compiler_moc_header_clean:
 	-$(DEL_FILE) moc_CanvasWidget.cpp moc_mainwindow.cpp
 moc_CanvasWidget.cpp: ../../CanvasWidget.h \
+		../../Image_Class.h \
+		../../stb_image.h \
+		../../stb_image_write.h \
 		moc_predefs.h \
 		/usr/lib/qt6/moc
 	/usr/lib/qt6/moc $(DEFINES) --include /home/shade/codingProjects/fcai/mini_photoshop/build/Desktop-Debug/moc_predefs.h -I/usr/lib/qt6/mkspecs/linux-g++ -I/home/shade/codingProjects/fcai/mini_photoshop -I/usr/include/qt6 -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I. -I/usr/include/c++/15.2.1 -I/usr/include/c++/15.2.1/x86_64-pc-linux-gnu -I/usr/include/c++/15.2.1/backward -I/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include -I/usr/local/include -I/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include-fixed -I/usr/include ../../CanvasWidget.h -o moc_CanvasWidget.cpp
 
 moc_mainwindow.cpp: ../../mainwindow.h \
+		../../Image_Class.h \
+		../../stb_image.h \
+		../../stb_image_write.h \
 		moc_predefs.h \
 		/usr/lib/qt6/moc
 	/usr/lib/qt6/moc $(DEFINES) --include /home/shade/codingProjects/fcai/mini_photoshop/build/Desktop-Debug/moc_predefs.h -I/usr/lib/qt6/mkspecs/linux-g++ -I/home/shade/codingProjects/fcai/mini_photoshop -I/usr/include/qt6 -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I. -I/usr/include/c++/15.2.1 -I/usr/include/c++/15.2.1/x86_64-pc-linux-gnu -I/usr/include/c++/15.2.1/backward -I/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include -I/usr/local/include -I/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/include-fixed -I/usr/include ../../mainwindow.h -o moc_mainwindow.cpp
@@ -1071,15 +1090,33 @@ compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean compiler_ui
 
 ####### Compile
 
-CanvasWidget.o: ../../CanvasWidget.cpp ../../CanvasWidget.h
+CanvasWidget.o: ../../CanvasWidget.cpp ../../CanvasWidget.h \
+		../../Image_Class.h \
+		../../stb_image.h \
+		../../stb_image_write.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o CanvasWidget.o ../../CanvasWidget.cpp
 
-main.o: ../../main.cpp ../../mainwindow.h
+filters.o: ../../filters.cpp ../../Image_Class.h \
+		../../stb_image.h \
+		../../stb_image_write.h \
+		../../gif.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o filters.o ../../filters.cpp
+
+main.o: ../../main.cpp ../../mainwindow.h \
+		../../Image_Class.h \
+		../../stb_image.h \
+		../../stb_image_write.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o ../../main.cpp
 
-mainwindow.o: ../../mainwindow.cpp ../../mainwindow.h \
-		../../CanvasWidget.h
+mainwindow.o: ../../mainwindow.cpp ../../CanvasWidget.h \
+		../../Image_Class.h \
+		../../stb_image.h \
+		../../stb_image_write.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o mainwindow.o ../../mainwindow.cpp
+
+stb_image_impl.o: ../../stb_image_impl.cpp ../../stb_image.h \
+		../../stb_image_write.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o stb_image_impl.o ../../stb_image_impl.cpp
 
 moc_CanvasWidget.o: moc_CanvasWidget.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_CanvasWidget.o moc_CanvasWidget.cpp

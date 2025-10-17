@@ -1,4 +1,4 @@
-#include "MainWindow.h"
+#include "mainwindow.h"
 #include "CanvasWidget.h"
 
 #include <QFileDialog>
@@ -80,8 +80,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     });
 
     connect(applyButton, &QPushButton::clicked, this, [this]() {
-        QRect r = canvas->m_cropRect;
-        canvas->applyCrop(r.left(), r.right(), r.top(), r.bottom());
+        QRect r = canvas->m_cropRect.toRect(); // Added .toRect()
+
+        connect(applyButton, &QPushButton::clicked, this, [this]() {
+            canvas->applyCrop();
+
+            canvas->setPreviewMode(false);
+            canvas->setTool(CanvasWidget::ToolMode::None);
+        });
 
         canvas->setPreviewMode(false);
         canvas->setTool(CanvasWidget::ToolMode::None);
