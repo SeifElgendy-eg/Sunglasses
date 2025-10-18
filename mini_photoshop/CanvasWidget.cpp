@@ -14,9 +14,7 @@ const QColor CHECKERBOARD_COLOR_1 = QColor("#2b2b2b");
 const QColor CHECKERBOARD_COLOR_2 = QColor("#3a3a3a");
 const int CHECKERBOARD_TILE_SIZE = 20;
 
-// ============================================================================
 // Constructor & Setup
-// ============================================================================
 
 CanvasWidget::CanvasWidget(QWidget *parent) : QWidget(parent) {
     setMouseTracking(true);
@@ -103,9 +101,7 @@ void CanvasWidget::setPreviewMode(bool enabled) {
     update();
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 void CanvasWidget::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
@@ -266,7 +262,6 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
                 start_y = qMax(0, (int)boundedSelection.top());
                 end_y = qMin(m_image.height(), (int)boundedSelection.bottom());
 
-                // Ensure valid selection dimensions
                 if (start_x >= end_x) {
                     start_x = 0;
                     end_x = m_image.width();
@@ -276,11 +271,9 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
                     end_y = m_image.height();
                 }
             } else if (m_tool == ToolMode::Resize) {
-                // Commit the resize by updating the original image
                 o_image = m_image;
-                // Also update r_image to preserve the resized version
-                r_image = m_image;
             }
+
             m_isDraggingTool = false;
             m_activeHandle = Handle::None;
         }
@@ -290,23 +283,13 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
 
 void CanvasWidget::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_D && event->modifiers() == Qt::ControlModifier) {
-        if (!m_selectionRect.isNull()) {
-            m_selectionRect = QRectF(); // Clear selection
-            // Reset filter region to full image
-            start_x = 0;
-            start_y = 0;
-            end_x = m_image.width();
-            end_y = m_image.height();
-            update();
-        }
+        clearSelection();
+        event->accept();
     } else {
-        QWidget::keyPressEvent(event); // Pass other key events up
+        QWidget::keyPressEvent(event);
     }
 }
 
-// ============================================================================
-// Drawing, Coordinate, and Cursor Helpers
-// ============================================================================
 
 void CanvasWidget::drawCropTool(QPainter &painter) {
     painter.save();
@@ -413,9 +396,7 @@ void CanvasWidget::updateCursor(const QPoint& p_screen) {
     setCursor(cursor);
 }
 
-// ============================================================================
 // State Management (Undo/Redo)
-// ============================================================================
 
 void CanvasWidget::saveState() {
     m_undoStack.push({m_image, o_image});
@@ -454,6 +435,10 @@ void CanvasWidget::resetImage() {
 }
 
 void CanvasWidget::commitChanges() {
+    if (!m_baseImage.isNull()) {
+        o_image = m_image;
+    }
+
     m_baseImage = QImage();
     o_baseImage = QImage();
 }
@@ -470,9 +455,7 @@ void CanvasWidget::cancelChanges() {
     update();
 }
 
-// ============================================================================
 // Filters and Tools
-// ============================================================================
 
 void CanvasWidget::applyCrop() {
     if(m_image.isNull() || !m_cropRectF.isValid() || m_cropRectF.size().isEmpty()) return;
@@ -573,6 +556,11 @@ void CanvasWidget::applyYellowFilter(const int intensity, FilterMode mode) {
         }
     }
     m_image = result;
+
+    if (mode == FilterMode::Increment) {
+        o_image = result;
+    }
+
     update();
 }
 
@@ -598,6 +586,7 @@ void CanvasWidget::applyPurpleFilter(const int intensity, FilterMode mode) {
 void CanvasWidget::applyInfraRedFilter() {
     if (m_image.isNull()) return;
     saveState();
+
     QImage result = m_image;
     for (int y = start_y; y < end_y; y++) {
         for (int x = start_x; x < end_x; x++) {
@@ -606,6 +595,7 @@ void CanvasWidget::applyInfraRedFilter() {
         }
     }
     m_image = result;
+    o_image = result;
     update();
 }
 
@@ -660,7 +650,6 @@ void CanvasWidget::applySharpenFilter() {
     if (m_image.isNull()) return;
     saveState();
 
-    // Convert QImage to Image for processing
     Image img = qImageToImage(m_image);
     Image copy = img;
 
@@ -687,8 +676,8 @@ void CanvasWidget::applySharpenFilter() {
         }
     }
 
-    // Convert back to QImage
     m_image = imageToQImage(img);
+    o_image = m_image;
     update();
 }
 
@@ -758,6 +747,7 @@ void CanvasWidget::applyEdgeDetection() {
         }
     }
     m_image = result;
+    o_image = result;
     update();
 }
 
@@ -827,6 +817,7 @@ void CanvasWidget::applyTvNoiseFilter() {
         }
     }
     m_image = result;
+    o_image = result;
     update();
 }
 
@@ -882,6 +873,19 @@ void CanvasWidget::applySkewFilter(double degree, FilterMode mode) {
     m_image = m_baseImage.transformed(transform, Qt::SmoothTransformation);
     resetView();
     update();
+}
+
+void CanvasWidget::clearSelection() {
+    m_selectionRect = QRectF();
+    start_x = 0;
+    start_y = 0;
+    end_x = m_image.width();
+    end_y = m_image.height();
+    update();
+}
+
+bool CanvasWidget::hasSelection() const {
+    return !m_selectionRect.isNull();
 }
 
 bool CanvasWidget::isMImageNull() {

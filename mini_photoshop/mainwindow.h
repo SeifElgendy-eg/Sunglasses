@@ -23,6 +23,9 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
+
 private slots:
     void applyMorphFilter(double blendFactor);
     void applyMorphAnimated(int frameCount, double blendFactor);
@@ -73,7 +76,6 @@ private slots:
     void onPreviewOilPaintFilter(int kernelSize);
     void onApplySkewFilter();
     void onPreviewSkewFilter(double degree);
-
 
 private:
     void createMenu();

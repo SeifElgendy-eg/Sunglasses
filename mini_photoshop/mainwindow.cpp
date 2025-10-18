@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "CanvasWidget.h"
+#include "qevent.h"
 
 #include <QFileDialog>
 #include <QFileInfo>
@@ -32,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     applyModernStyle();
     canvas = new CanvasWidget(this);
 
+    qApp->installEventFilter(this);
 
     QWidget *filterPanel = createFilterSidePanel();
     QWidget *morphPanel  =  createMorphPanel();
@@ -1846,5 +1848,22 @@ void MainWindow::applyMergeToCanvas()
     }
 }
 
+bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
+    if (event->type() == QEvent::KeyPress) {
+        QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+
+        if (keyEvent->key() == Qt::Key_D &&
+            keyEvent->modifiers() == Qt::ControlModifier) {
+
+            if (canvas && canvas->hasSelection()) {
+                canvas->clearSelection();
+                statusBar()->showMessage("Selection cleared", 2000);
+                return true;
+            }
+        }
+    }
+
+    return QMainWindow::eventFilter(obj, event);
+}
 
 void MainWindow::exitApp() { close(); }

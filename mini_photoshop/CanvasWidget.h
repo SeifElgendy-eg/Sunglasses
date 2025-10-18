@@ -20,7 +20,7 @@ public:
     enum class ToolMode { None, Move, Select, Resize, Crop };
     enum class FilterMode { Preview, Increment };
 
-    // --- Public API ---
+    // Public API
     void setImage(const QImage &img);
     void updateImage(const QImage &img);
     void setTool(ToolMode tool);
@@ -65,8 +65,10 @@ public:
     void applyPixelSortFilter(int threshold, FilterMode mode);
     void applySharpenFilter();
 
-    // Public members for legacy compatibility
     QRect m_cropRect;
+
+    void clearSelection();
+    bool hasSelection() const;
 
 signals:
     void previewModeChanged(bool enabled);
@@ -106,7 +108,7 @@ private:
     int m_lastRotation = 0;
     int start_x, end_x, start_y, end_y; // For filter region
 
-    // View transformation (pan and zoom)
+    // View transformation
     qreal m_scale = 1.0;
     QPointF m_panOffset = {0, 0};
     QPointF m_panLastPos;
