@@ -22,7 +22,7 @@ public:
 
     // --- Public API ---
     void setImage(const QImage &img);
-     void updateImage(const QImage &img);
+    void updateImage(const QImage &img);
     void setTool(ToolMode tool);
     const QImage &image() const { return m_image; }
     const QImage &originalImage() const { return o_image; }

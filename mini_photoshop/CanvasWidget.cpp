@@ -61,6 +61,7 @@ void CanvasWidget::updateImage(const QImage &img) {
     update();
 }
 
+
 void CanvasWidget::setTool(ToolMode tool) {
     if (m_tool == tool) return;
     m_tool = tool;
@@ -264,9 +265,21 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
                 end_x = qMin(m_image.width(), (int)boundedSelection.right());
                 start_y = qMax(0, (int)boundedSelection.top());
                 end_y = qMin(m_image.height(), (int)boundedSelection.bottom());
+
+                // Ensure valid selection dimensions
+                if (start_x >= end_x) {
+                    start_x = 0;
+                    end_x = m_image.width();
+                }
+                if (start_y >= end_y) {
+                    start_y = 0;
+                    end_y = m_image.height();
+                }
             } else if (m_tool == ToolMode::Resize) {
                 // Commit the resize by updating the original image
                 o_image = m_image;
+                // Also update r_image to preserve the resized version
+                r_image = m_image;
             }
             m_isDraggingTool = false;
             m_activeHandle = Handle::None;

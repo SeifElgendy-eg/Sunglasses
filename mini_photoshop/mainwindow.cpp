@@ -331,22 +331,21 @@ void MainWindow::createToolBar() {
     connect(moveAct, &QAction::triggered, this,
             [this]() { canvas->setTool(CanvasWidget::ToolMode::Move); });
 
-    QAction *lightenAct = new QAction("Brighten Image", this);
-    lightenAct->setToolTip("Enhance reds and greens");
-    lightenAct->setCheckable(false);
+    QAction *temperatureAct = new QAction("Temperature", this);
+    temperatureAct->setToolTip("Adjust image temperature");
+    temperatureAct->setCheckable(false);
 
-    connect(lightenAct, &QAction::triggered, this, [this]() {
+    connect(temperatureAct, &QAction::triggered, this, [this]() {
         canvas->saveState();
         QDialog dialog(this);
-        dialog.setWindowTitle("Adjust the green level");
+        dialog.setWindowTitle("Temperature");
 
         QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
-        QLabel *label = new QLabel("reds & greens :", &dialog);
+        QLabel *label = new QLabel("Temperature", &dialog);
 
         slider->setRange(-100, 100);
         slider->setValue(20);
-
 
         QTimer *timer = new QTimer(&dialog);
         timer->setSingleShot(true);
@@ -388,22 +387,22 @@ void MainWindow::createToolBar() {
         dialog.exec();
     });
 
-    QAction *purpleAct = new QAction("Purple Image", this);
-    purpleAct->setToolTip("Enhance reds and blues");
-    purpleAct->setCheckable(false);
 
-    connect(purpleAct, &QAction::triggered, this, [this]() {
+    QAction *tintAct = new QAction("Tint", this);
+    tintAct->setToolTip("Adjust image tint");
+    tintAct->setCheckable(false);
+
+    connect(tintAct, &QAction::triggered, this, [this]() {
         canvas->saveState();
         QDialog dialog(this);
-        dialog.setWindowTitle("reds and blues");
+        dialog.setWindowTitle("Adjust Tint");
 
         QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
-        QLabel *label = new QLabel(":", &dialog);
+        QLabel *label = new QLabel("Tint (Cool):", &dialog);
 
         slider->setRange(-100, 100);
         slider->setValue(30);
-
 
         QTimer *timer = new QTimer(&dialog);
         timer->setSingleShot(true);
@@ -432,7 +431,6 @@ void MainWindow::createToolBar() {
             dialog.reject();
         });
 
-
         connect(slider, &QSlider::valueChanged, timer, [timer]() {
             timer->start(100);
         });
@@ -446,14 +444,14 @@ void MainWindow::createToolBar() {
         dialog.exec();
     });
 
-    QAction *blackAndWhiteAct = new QAction("Black and white image", this);
+    QAction *blackAndWhiteAct = new QAction("Black & white", this);
     blackAndWhiteAct->setToolTip("Make a classic image");
     blackAndWhiteAct->setCheckable(false);
 
     connect(blackAndWhiteAct, &QAction::triggered, this, [this]() {
         canvas->saveState();
         QDialog dialog(this);
-        dialog.setWindowTitle("Black & White ");
+        dialog.setWindowTitle("Black & White");
 
         QVBoxLayout *layout = new QVBoxLayout(&dialog);
         QSlider *slider = new QSlider(Qt::Horizontal);
@@ -812,8 +810,8 @@ void MainWindow::createToolBar() {
     tb->addAction(resizeAct);
     tb->addAction(cropAct);
     tb->addAction(blackAndWhiteAct);
-    tb->addAction(lightenAct);
-    tb->addAction(purpleAct);
+    tb->addAction(temperatureAct);
+    tb->addAction(tintAct);
     tb->addAction(blurAct);
     tb->addAction(brightAct);
     tb->addAction(oilAct);

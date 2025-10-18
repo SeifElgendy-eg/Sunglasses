@@ -9,7 +9,6 @@
 #include <chrono>
 #include <limits>
 #include <cstdint>
-#include <memory>
 #include <stdexcept>
 
 namespace Config
@@ -706,8 +705,6 @@ void morphAnimated(Image &sourceImage, Image &targetImage, Image &weightsImage,
         }
         else
         {
-            double current_alpha = 1.0 * (1.0 - t) + blendFactor * t;
-
             for (int destRow = 0; destRow < height; destRow++)
             {
                 for (int destCol = 0; destCol < width; destCol++)
