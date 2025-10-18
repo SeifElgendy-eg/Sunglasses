@@ -1745,11 +1745,11 @@ void MainWindow::applyMorphFilter(double blendFactor)
 
     try
     {
-        // Convert canvas image to Image type
+        canvas->saveState();
+
         Image sourceImage = canvas->qImageToImage(canvas->image());
         Image targetImg = *targetImage;
 
-        // Create or use weights image
         Image weightsImg;
         if (weightsImage) {
             weightsImg = *weightsImage;
@@ -1761,11 +1761,10 @@ void MainWindow::applyMorphFilter(double blendFactor)
             }
         }
 
-        // Call the morph function
         morph(sourceImage, targetImg, weightsImg, blendFactor);
 
-        // Update canvas with morphed result
-        canvas->setImage(canvas->imageToQImage(sourceImage));
+        QImage morphedResult = canvas->imageToQImage(sourceImage);
+        canvas->updateImage(morphedResult);
 
         QMessageBox::information(this, "Success", "Morph applied successfully!");
     }
@@ -1836,15 +1835,18 @@ void MainWindow::applyMergeToCanvas()
 
     try
     {
-        // Apply the merged image to canvas
-        canvas->setImage(canvas->imageToQImage(*outputMergeImage));
+        canvas->saveState();
+
+        canvas->updateImage(canvas->imageToQImage(*outputMergeImage));
+
         QMessageBox::information(this, "Success", "Merge applied to canvas!");
     }
     catch (const std::exception &e)
     {
-        QMessageBox::critical(this, "Error",
+            QMessageBox::critical(this, "Error",
                               QString("Failed to apply merge to canvas: %1").arg(e.what()));
     }
 }
+
 
 void MainWindow::exitApp() { close(); }

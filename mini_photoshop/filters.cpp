@@ -602,7 +602,6 @@ void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, double b
 
     Image morphedImage(targetImage.width, targetImage.height);
     int width = targetImage.width;
-    double alpha = blendFactor;
 
     for (int row = 0; row < targetImage.height; row++)
     {
@@ -613,20 +612,9 @@ void morph(Image &sourceImage, Image &targetImage, Image &weightsImage, double b
             int srcRow = sourceIdx / width;
             int srcCol = sourceIdx % width;
 
-            int warpedR = sourceImage(srcCol, srcRow, 0);
-            int warpedG = sourceImage(srcCol, srcRow, 1);
-            int warpedB = sourceImage(srcCol, srcRow, 2);
-
-            int targetR = targetImage(col, row, 0);
-            int targetG = targetImage(col, row, 1);
-            int targetB = targetImage(col, row, 2);
-
-            morphedImage(col, row, 0) = static_cast<unsigned char>(
-                std::clamp(static_cast<int>(alpha * warpedR + (1.0 - alpha) * targetR), 0, 255));
-            morphedImage(col, row, 1) = static_cast<unsigned char>(
-                std::clamp(static_cast<int>(alpha * warpedG + (1.0 - alpha) * targetG), 0, 255));
-            morphedImage(col, row, 2) = static_cast<unsigned char>(
-                std::clamp(static_cast<int>(alpha * warpedB + (1.0 - alpha) * targetB), 0, 255));
+            morphedImage(col, row, 0) = sourceImage(srcCol, srcRow, 0);
+            morphedImage(col, row, 1) = sourceImage(srcCol, srcRow, 1);
+            morphedImage(col, row, 2) = sourceImage(srcCol, srcRow, 2);
         }
     }
 
@@ -736,20 +724,9 @@ void morphAnimated(Image &sourceImage, Image &targetImage, Image &weightsImage,
                     int srcCol = std::clamp(static_cast<int>(std::round(sampleCol)), 0, width - 1);
                     int srcRow = std::clamp(static_cast<int>(std::round(sampleRow)), 0, height - 1);
 
-                    int warpedR = sourceImage(srcCol, srcRow, 0);
-                    int warpedG = sourceImage(srcCol, srcRow, 1);
-                    int warpedB = sourceImage(srcCol, srcRow, 2);
-
-                    int targetR = targetImage(destCol, destRow, 0);
-                    int targetG = targetImage(destCol, destRow, 1);
-                    int targetB = targetImage(destCol, destRow, 2);
-
-                    unsigned char R = static_cast<unsigned char>(std::clamp(
-                        static_cast<int>(current_alpha * warpedR + (1.0 - current_alpha) * targetR), 0, 255));
-                    unsigned char G = static_cast<unsigned char>(std::clamp(
-                        static_cast<int>(current_alpha * warpedG + (1.0 - current_alpha) * targetG), 0, 255));
-                    unsigned char B = static_cast<unsigned char>(std::clamp(
-                        static_cast<int>(current_alpha * warpedB + (1.0 - current_alpha) * targetB), 0, 255));
+                    unsigned char R = sourceImage(srcCol, srcRow, 0);
+                    unsigned char G = sourceImage(srcCol, srcRow, 1);
+                    unsigned char B = sourceImage(srcCol, srcRow, 2);
 
                     int framePos = (destRow * width + destCol) * 4;
                     currentFrameBuffer[framePos + 0] = R;

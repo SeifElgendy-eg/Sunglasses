@@ -49,6 +49,18 @@ void CanvasWidget::setImage(const QImage &img) {
     resetView();
 }
 
+void CanvasWidget::updateImage(const QImage &img) {
+    m_image = img;
+    o_image = img;
+
+    start_x = 0;
+    start_y = 0;
+    end_x = m_image.width();
+    end_y = m_image.height();
+
+    update();
+}
+
 void CanvasWidget::setTool(ToolMode tool) {
     if (m_tool == tool) return;
     m_tool = tool;
