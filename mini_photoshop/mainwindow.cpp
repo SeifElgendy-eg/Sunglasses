@@ -1,6 +1,5 @@
 #include "MainWindow.h"
 #include "CanvasWidget.h"
-#include <omp.h>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGridLayout>
@@ -9,7 +8,9 @@
 #include <QImage>
 #include <QLabel>
 #include <QIcon>
+#include <QColorDialog>
 #include <QMenuBar>
+#include <QToolButton>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
@@ -426,6 +427,29 @@ void MainWindow::createToolBar() {
             [this]() { canvas->setTool(CanvasWidget::ToolMode::Pan);
             });
 
+    QAction *brushAct = new QAction("Brush", this);
+    brushAct->setToolTip("Paint any Color on image pixels");
+    brushAct ->setIcon(QIcon(":/icons/brush.svg"));
+    brushAct->setCheckable(false);
+    connect(brushAct, &QAction::triggered, this,
+            [this]() {
+        canvas->setTool(CanvasWidget::ToolMode::Brush);
+
+            });
+
+    QToolButton *colorPreview = new QToolButton(this);
+    colorPreview->setFixedSize(40, 40);
+    colorPreview->setStyleSheet("background-color: white; border: 1px solid gray;");
+
+
+    connect(colorPreview, &QToolButton::clicked, this,
+            [this,colorPreview]() {
+                QColor color = QColorDialog::getColor(Qt::white, this, "Pick a Color");
+                if (color.isValid()) {
+                    canvas ->setBrushColor(color);
+                }
+                colorPreview->setStyleSheet(QString("background-color: %1; border: 1px solid gray;").arg(color.name()));
+            });
 
     QAction *blackAndWhiteAct = new QAction("Black and white image", this);
     blackAndWhiteAct ->setIcon(QIcon(":/icons/bnw.svg"));
@@ -478,7 +502,6 @@ void MainWindow::createToolBar() {
                 [this]() { canvas->cancelChanges(); });
         dialog.exec();
     });
-
 
 
     QAction *pixelSortAct = new QAction("Pixel Sort", this);
@@ -744,11 +767,20 @@ void MainWindow::createToolBar() {
         canvas->setTool(CanvasWidget::ToolMode::Crop);
         canvas->setPreviewMode(true);
     });
+
+    // ColorWheel *wheel = new ColorWheel;
+    // wheel->setFixedSize(100, 100);
+    // toolbar->addWidget(wheel);
+
+    // connect(wheel, &ColorWheel::colorChanged, this, [this](const QColor &color) {
+    //     m_currentColor = color;
+    // });
     // Add to toolbar
     tb = addToolBar("Tools");
     addToolBar(Qt::LeftToolBarArea, tb);
     tb->addAction(moveAct);
     tb->addAction(panAct);
+    tb->addAction(brushAct);
     tb->addAction(selectAct);
     tb->addAction(resizeAct);
     tb->addAction(cropAct);
@@ -758,6 +790,7 @@ void MainWindow::createToolBar() {
     tb->addAction(oilAct);
     tb->addAction(skewAct);
     tb->addAction(pixelSortAct);
+    tb ->addWidget(colorPreview);
 }
 
 QWidget *MainWindow::createFilterSidePanel() {

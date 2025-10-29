@@ -12,7 +12,7 @@ class CanvasWidget : public QOpenGLWidget, protected QOpenGLFunctions
     Q_OBJECT
 public:
     explicit CanvasWidget(QWidget *parent = nullptr);
-enum class ToolMode { None,Move,Select, Resize,Crop,Pan};
+enum class ToolMode { None,Move,Select, Resize,Crop,Pan,Brush};
     enum class FilterMode {Preview, Increment};
     void addImage(const QImage &img);
     void setTool(ToolMode tool);
@@ -35,6 +35,7 @@ enum class ToolMode { None,Move,Select, Resize,Crop,Pan};
     void applySkewFilter(double degree, FilterMode mode);
     void applyCrop(int xs,int xe,int ys, int ye);
     void applyPixelSort (int threshold, FilterMode mode);
+    void setBrushColor(QColor color);
     void updateCropHandles();
     void setActiveLayer(int index);
     bool isMImageNull();
@@ -172,6 +173,9 @@ private:
     QRect checkRect;
     QRect interRect;
 
+    QColor brushColor = Qt::white;
+    bool isbrushing
+        =false;
     int start_x,end_x;
     int start_y,end_y;
     int o_x_s;

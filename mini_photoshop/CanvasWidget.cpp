@@ -309,7 +309,11 @@ void CanvasWidget::mousePressEvent(QMouseEvent *event) {
         }
     }
 
-
+    if(m_tool == ToolMode::Brush){
+        isbrushing =true;
+        saveState();
+        qDebug()<<"brush active";
+    }
      update();
 
 }
@@ -442,10 +446,44 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
 
         moveCropGroup(deltaX, deltaX_2, deltaY, deltaY_2,'Y');
         m_cropStart = translateEventPosition(event->pos()).toPoint();
-        update();
+
     }
+    QPoint currentPos =translateEventPosition(event->pos()).toPoint();
+    qDebug()<<currentPos-offset();
+    if(isbrushing && checkRect.contains(currentPos)){
+        int radius =3;
+
+        for (int dy = -radius; dy <= radius; dy++) {
+
+            for (int dx = -radius; dx<= radius; dx++) {
+                int nx = currentPos.x()-offset().x() + dx;
+                int ny = currentPos.y()-offset().y() + dy;
+
+                if (nx >= 0 && nx < m_image().width() && ny >= 0 &&
+                    ny < m_image().height()) {
+                    m_image().setPixelColor(nx,ny,brushColor);
+                }
+            }
+        }
+        for (int dy = -radius; dy <= radius; dy++) {
+            for (int dx = -radius; dx<= radius; dx++) {
+                int nx = (currentPos.x()-offset().x() + dx) * o_image().width() / m_image().width();
+                int ny = (currentPos.y()-offset().y() + dy)* o_image().height() / m_image().height();
+
+                if (nx >= 0 && nx < o_image().width() && ny >= 0 &&
+                    ny < o_image().height()) {
+                    o_image().setPixelColor(nx,ny,brushColor);
+                }
+            }
+        }
+
+    }
+update();
 }
 
+void CanvasWidget:: setBrushColor(QColor color){
+    brushColor  = color;
+}
 void CanvasWidget::applyCrop(int xs,int xe,int ys, int ye){
 
     if(m_image().isNull())
@@ -520,6 +558,9 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
         update();
     }
 
+    if(isbrushing){
+        isbrushing = false;
+    }
     if((m_panning &&event->button() == Qt::LeftButton) ||event->button() == Qt::MiddleButton){
         m_panning = false;
         setCursor(Qt::ArrowCursor);

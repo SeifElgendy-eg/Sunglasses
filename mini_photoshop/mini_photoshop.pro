@@ -14,12 +14,15 @@ QT += concurrent
 QMAKE_CXXFLAGS += -fopenmp
 QMAKE_LFLAGS += -fopenmp
 
+INCLUDEPATH += $$PWD/Qt-Color-Widgets/src/QtColorWidgets
+
 SOURCES += \
     CanvasWidget.cpp \
     filters.cpp \
     main.cpp \
     mainwindow.cpp \
-    stb_image_impl.cpp
+    stb_image_impl.cpp\
+
 
 HEADERS += \
     CanvasWidget.h \
@@ -39,3 +42,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 RESOURCES += \
     resources.qrc
+
+
+
