@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/select.svg</file>
+        <file>icons/pan.svg</file>
+        <file>icons/move.svg</file>
+        <file>icons/blur.svg</file>
+        <file>icons/bnw.svg</file>
+        <file>icons/brightness.svg</file>
+        <file>icons/crop.svg</file>
+        <file>icons/paint.svg</file>
+        <file>icons/resize.svg</file>
+        <file>icons/skew.svg</file>
+    </qresource>
+</RCC>
