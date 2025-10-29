@@ -10,5 +10,6 @@
         <file>icons/paint.svg</file>
         <file>icons/resize.svg</file>
         <file>icons/skew.svg</file>
+        <file>icons/sort.svg</file>
     </qresource>
 </RCC>

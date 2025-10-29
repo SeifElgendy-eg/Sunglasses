@@ -270,6 +270,104 @@ void MainWindow::createMenu() {
     connect(reflectHAction, &QAction::triggered, this,
             [this]() { canvas->applyHorizontalReflection(); });
 
+    QAction *lightenAct = filtersMenu->addAction("&Brighten");
+    lightenAct->setToolTip("Adjust reds and greens");
+    lightenAct->setCheckable(false);
+
+    connect(lightenAct, &QAction::triggered, this, [this]() {
+        canvas->saveState();
+        QDialog dialog(this);
+        dialog.setWindowTitle("Tint");
+
+        QVBoxLayout *layout = new QVBoxLayout(
+            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QSlider *slider = new QSlider(Qt::Horizontal);
+        QLabel *label = new QLabel("reds & greens :", &dialog);
+
+        slider->setRange(-100, 100);
+        slider->setValue(20);
+        canvas->applyYellowFilter(slider->value(),
+                                  CanvasWidget::FilterMode::Preview);
+        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+
+        QPushButton *applyBtn = new QPushButton("Apply", &dialog);
+        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+
+        buttonsRow->addWidget(applyBtn);
+        buttonsRow->addWidget(canelBtn);
+
+        layout->addWidget(label);
+        layout->addWidget(slider);
+        layout->addLayout(buttonsRow);
+
+        connect(applyBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->commitChanges();
+            dialog.accept();
+        });
+
+        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->cancelChanges();
+            dialog.reject();
+        });
+
+        connect(slider, &QSlider::valueChanged, this, [this](int value) {
+            canvas->applyYellowFilter(value, CanvasWidget::FilterMode::Preview);
+        });
+
+        connect(&dialog, &QDialog::rejected, this,
+                [this]() { canvas->cancelChanges(); });
+        dialog.exec();
+    });
+
+    QAction *purpleAct = filtersMenu->addAction("&Tint");
+    purpleAct->setToolTip("Adjust reds and blues");
+    purpleAct->setCheckable(false);
+
+    connect(purpleAct, &QAction::triggered, this, [this]() {
+        canvas->saveState();
+        QDialog dialog(this);
+        dialog.setWindowTitle("Tint");
+
+        QVBoxLayout *layout = new QVBoxLayout(
+            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QSlider *slider = new QSlider(Qt::Horizontal);
+        QLabel *label = new QLabel(":", &dialog);
+
+        slider->setRange(-100, 100);
+        slider->setValue(30);
+        canvas->applyPurpleFilter(slider->value(),
+                                  CanvasWidget::FilterMode::Preview);
+        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+
+        QPushButton *applyBtn = new QPushButton("Apply", &dialog);
+        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+
+        buttonsRow->addWidget(applyBtn);
+        buttonsRow->addWidget(canelBtn);
+
+        layout->addWidget(label);
+        layout->addWidget(slider);
+        layout->addLayout(buttonsRow);
+
+        connect(applyBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->commitChanges();
+            dialog.accept();
+        });
+
+        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->cancelChanges();
+            dialog.reject();
+        });
+
+        connect(slider, &QSlider::valueChanged, this, [this](int value) {
+            canvas->applyPurpleFilter(value, CanvasWidget::FilterMode::Preview);
+        });
+
+        connect(&dialog, &QDialog::rejected, this,
+                [this]() { canvas->cancelChanges(); });
+        dialog.exec();
+    });
+
     filtersMenu->addSeparator();
 
     QAction *edgesAction = filtersMenu->addAction("&Edge Detection");
@@ -329,104 +427,6 @@ void MainWindow::createToolBar() {
             });
 
 
-    // QAction *lightenAct = new QAction("Birghten Image", this);
-    // lightenAct->setToolTip("Enhance reds and greens");
-    // lightenAct->setCheckable(false);
-
-    // connect(lightenAct, &QAction::triggered, this, [this]() {
-    //     canvas->saveState();
-    //     QDialog dialog(this);
-    //     dialog.setWindowTitle("Adjust the green level");
-
-    //     QVBoxLayout *layout = new QVBoxLayout(
-    //         &dialog); // H,V BoxLayouts are a basically Rows and Columns
-    //     QSlider *slider = new QSlider(Qt::Horizontal);
-    //     QLabel *label = new QLabel("reds & greens :", &dialog);
-
-    //     slider->setRange(-100, 100);
-    //     slider->setValue(20);
-    //     canvas->applyYellowFilter(slider->value(),
-    //                               CanvasWidget::FilterMode::Preview);
-    //     QHBoxLayout *buttonsRow = new QHBoxLayout(this);
-
-    //     QPushButton *applyBtn = new QPushButton("Apply", &dialog);
-    //     QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
-
-    //     buttonsRow->addWidget(applyBtn);
-    //     buttonsRow->addWidget(canelBtn);
-
-    //     layout->addWidget(label);
-    //     layout->addWidget(slider);
-    //     layout->addLayout(buttonsRow);
-
-    //     connect(applyBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
-    //         canvas->commitChanges();
-    //         dialog.accept();
-    //     });
-
-    //     connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
-    //         canvas->cancelChanges();
-    //         dialog.reject();
-    //     });
-
-    //     connect(slider, &QSlider::valueChanged, this, [this](int value) {
-    //         canvas->applyYellowFilter(value, CanvasWidget::FilterMode::Preview);
-    //     });
-
-    //     connect(&dialog, &QDialog::rejected, this,
-    //             [this]() { canvas->cancelChanges(); });
-    //     dialog.exec();
-    // });
-
-    // QAction *purpleAct = new QAction("Purple Image", this);
-    // purpleAct->setToolTip("Enhance reds and blues");
-    // purpleAct->setCheckable(false);
-
-    // connect(purpleAct, &QAction::triggered, this, [this]() {
-    //     canvas->saveState();
-    //     QDialog dialog(this);
-    //     dialog.setWindowTitle("reds and blues");
-
-    //     QVBoxLayout *layout = new QVBoxLayout(
-    //         &dialog); // H,V BoxLayouts are a basically Rows and Columns
-    //     QSlider *slider = new QSlider(Qt::Horizontal);
-    //     QLabel *label = new QLabel(":", &dialog);
-
-    //     slider->setRange(-100, 100);
-    //     slider->setValue(30);
-    //     canvas->applyPurpleFilter(slider->value(),
-    //                               CanvasWidget::FilterMode::Preview);
-    //     QHBoxLayout *buttonsRow = new QHBoxLayout(this);
-
-    //     QPushButton *applyBtn = new QPushButton("Apply", &dialog);
-    //     QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
-
-    //     buttonsRow->addWidget(applyBtn);
-    //     buttonsRow->addWidget(canelBtn);
-
-    //     layout->addWidget(label);
-    //     layout->addWidget(slider);
-    //     layout->addLayout(buttonsRow);
-
-    //     connect(applyBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
-    //         canvas->commitChanges();
-    //         dialog.accept();
-    //     });
-
-    //     connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
-    //         canvas->cancelChanges();
-    //         dialog.reject();
-    //     });
-
-    //     connect(slider, &QSlider::valueChanged, this, [this](int value) {
-    //         canvas->applyPurpleFilter(value, CanvasWidget::FilterMode::Preview);
-    //     });
-
-    //     connect(&dialog, &QDialog::rejected, this,
-    //             [this]() { canvas->cancelChanges(); });
-    //     dialog.exec();
-    // });
-
     QAction *blackAndWhiteAct = new QAction("Black and white image", this);
     blackAndWhiteAct ->setIcon(QIcon(":/icons/bnw.svg"));
     blackAndWhiteAct->setToolTip("Make a classic image");
@@ -479,6 +479,57 @@ void MainWindow::createToolBar() {
         dialog.exec();
     });
 
+
+
+    QAction *pixelSortAct = new QAction("Pixel Sort", this);
+    pixelSortAct ->setIcon(QIcon(":/icons/sort.svg"));
+    pixelSortAct->setToolTip("Sort pixels for a nice visual effect");
+    pixelSortAct->setCheckable(false);
+
+    connect(pixelSortAct, &QAction::triggered, this, [this]() {
+        canvas->saveState();
+        QDialog dialog(this);
+        dialog.setWindowTitle("Pixel Sorting");
+
+        QVBoxLayout *layout = new QVBoxLayout(
+            &dialog); // H,V BoxLayouts are a basically Rows and Columns
+        QSlider *slider = new QSlider(Qt::Horizontal);
+        QLabel *label = new QLabel("Threshold:", &dialog);
+
+        slider->setRange(0, 255);
+        slider->setValue(128);
+
+        canvas->applyPixelSort(slider->value(),CanvasWidget::FilterMode::Preview);
+        QHBoxLayout *buttonsRow = new QHBoxLayout(this);
+
+        QPushButton *applyBtn = new QPushButton("Apply", &dialog);
+        QPushButton *canelBtn = new QPushButton("Cancel", &dialog);
+
+        buttonsRow->addWidget(applyBtn);
+        buttonsRow->addWidget(canelBtn);
+
+        layout->addWidget(label);
+        layout->addWidget(slider);
+        layout->addLayout(buttonsRow);
+
+        connect(applyBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->commitChanges();
+            dialog.accept();
+        });
+
+        connect(canelBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
+            canvas->cancelChanges();
+            dialog.reject();
+        });
+
+        connect(slider, &QSlider::valueChanged, this, [this](int value) {
+            canvas->applyPixelSort(value, CanvasWidget::FilterMode::Preview);
+        });
+
+        connect(&dialog, &QDialog::rejected, this,
+                [this]() { canvas->cancelChanges(); });
+        dialog.exec();
+    });
     QAction *blurAct = new QAction("Blur", this);
     blurAct ->setIcon(QIcon(":/icons/blur.svg"));
     blurAct->setToolTip("Make the image blury");
@@ -706,6 +757,7 @@ void MainWindow::createToolBar() {
     tb->addAction(brightAct);
     tb->addAction(oilAct);
     tb->addAction(skewAct);
+    tb->addAction(pixelSortAct);
 }
 
 QWidget *MainWindow::createFilterSidePanel() {

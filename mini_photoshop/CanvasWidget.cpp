@@ -1,4 +1,5 @@
 #include "CanvasWidget.h"
+#include <Image_Class.h>
 #include <QtConcurrent>
 #include <QMouseEvent>
 #include <QPainterPath>
@@ -8,6 +9,8 @@
 #include <QListWidget>
 #include <bits/stdc++.h>
 
+
+extern Image pixelsort(Image &image, int threshold, int x_s, int x_e , int y_s, int y_e );
 
 CanvasWidget::CanvasWidget(QWidget *parent) : QOpenGLWidget(parent),activeIndex(-1)  {
     setAutoFillBackground(true);
@@ -1461,6 +1464,34 @@ void CanvasWidget::applySkewFilter(double degree, FilterMode mode) {
     update();
 }
 
+void CanvasWidget::applyPixelSort (int threshold, FilterMode mode){
+
+
+    if (m_baseImage.isNull())
+        m_baseImage = m_image();
+    if (m_image().isNull())
+        return;
+
+    if (mode == FilterMode::Increment)
+        saveState();
+
+    Image image;
+    image = qImageToImage(m_baseImage);
+    pixelsort(image,threshold,start_x,end_x, start_y,end_y);
+    m_image() = imageToQImage(image);
+
+    if (o_baseImage.isNull())
+        o_baseImage = o_image();
+    else if (o_image().isNull())
+        return;
+
+    Image o_Image;
+    o_Image = qImageToImage(o_baseImage);
+    pixelsort(o_Image,threshold,o_x_s,o_x_e, o_y_s,o_y_e);
+    o_image() = imageToQImage(o_Image);
+    update();
+
+}
 bool CanvasWidget::isMImageNull() {
     if (m_image().isNull())
         return true;

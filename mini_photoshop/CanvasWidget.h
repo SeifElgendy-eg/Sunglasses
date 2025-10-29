@@ -34,6 +34,7 @@ enum class ToolMode { None,Move,Select, Resize,Crop,Pan};
     void applyOilPaintFilter(int kernelSize, int levels,FilterMode mode);
     void applySkewFilter(double degree, FilterMode mode);
     void applyCrop(int xs,int xe,int ys, int ye);
+    void applyPixelSort (int threshold, FilterMode mode);
     void updateCropHandles();
     void setActiveLayer(int index);
     bool isMImageNull();

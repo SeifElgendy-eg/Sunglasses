@@ -788,3 +788,31 @@ omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
     GifEnd(&g);
     std::cout << "\nAnimated GIF creation complete!" << std::endl;
 }
+
+Image pixelsort(Image &image, int threshold, int x_s, int x_e , int y_s, int y_e ){
+    for(int col=x_s; col<x_e; col++){
+        int curSt = 0;
+        std::vector<std::vector<int>> pxls;
+        for(int row=y_s; row<y_e; row++){
+            if((image(col, row, 0)+image(col, row, 1)+image(col, row, 2))/3<threshold){
+                std::vector<int> pxl{image(col, row, 0), image(col, row, 1), image(col, row, 2)};
+                pxls.push_back(pxl);
+            }
+            else{
+                if(!pxls.size()){
+                    curSt=row+1;
+                    continue;
+                }
+                std::sort(pxls.begin(), pxls.end(), [](std::vector<int> &a, std::vector<int> &b){return (a[0]+a[1]+a[2])<(b[0]+b[1]+b[2]);});
+                for(int i = curSt; i<row; i++){
+                    image(col, i, 0)=pxls[i-curSt][0];
+                    image(col, i, 1)=pxls[i-curSt][1];
+                    image(col, i, 2)=pxls[i-curSt][2];
+                }
+                curSt=row+1;
+                pxls.clear();
+            }
+        }
+    }
+    return image;
+}
