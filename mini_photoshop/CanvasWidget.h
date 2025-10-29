@@ -34,8 +34,10 @@ enum class ToolMode { None,Move,Select, Resize,Crop,Pan,Brush};
     void applyOilPaintFilter(int kernelSize, int levels,FilterMode mode);
     void applySkewFilter(double degree, FilterMode mode);
     void applyCrop(int xs,int xe,int ys, int ye);
-    void applyPixelSort (int threshold, FilterMode mode);
+    void applyPixelSort (int threshold, FilterMode mode, char sortMode);
     void setBrushColor(QColor color);
+    void setBrushRadius (int radius);
+    void resizeCanvas(int width, int height);
     void updateCropHandles();
     void setActiveLayer(int index);
     bool isMImageNull();
@@ -47,6 +49,7 @@ enum class ToolMode { None,Move,Select, Resize,Crop,Pan,Brush};
     void commitChanges();
     void saveState();
     void cancelChanges();
+    int brushRadius = 1;
     const QImage &image() const { return activeImage; }
     const QImage $image() const {return dump;}
     QRect canvasRect;
@@ -174,8 +177,7 @@ private:
     QRect interRect;
 
     QColor brushColor = Qt::white;
-    bool isbrushing
-        =false;
+    bool isbrushing = false;
     int start_x,end_x;
     int start_y,end_y;
     int o_x_s;

@@ -4,6 +4,7 @@
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QToolTip>
 #include <QHBoxLayout>
 #include <QImage>
 #include <QLabel>
@@ -434,12 +435,28 @@ void MainWindow::createToolBar() {
     connect(brushAct, &QAction::triggered, this,
             [this]() {
         canvas->setTool(CanvasWidget::ToolMode::Brush);
-
             });
 
     QToolButton *colorPreview = new QToolButton(this);
     colorPreview->setFixedSize(40, 40);
     colorPreview->setStyleSheet("background-color: white; border: 1px solid gray;");
+
+    QWidget *brushRadiusContent = new QWidget(this);
+    QVBoxLayout *Column = new QVBoxLayout(brushRadiusContent);
+
+    QSlider *brushRadiusSlider = new QSlider(Qt::Vertical);
+    brushRadiusSlider->setRange(1, 200);
+    brushRadiusSlider->setValue(1);
+
+    QLabel *label = new QLabel("Size:");
+
+    label ->setAlignment(Qt::AlignLeft);
+    connect(brushRadiusSlider, &QSlider::valueChanged, this, [this](int value) {
+        canvas->setBrushRadius(value);
+        QToolTip::showText(QCursor::pos(),QString::number(value));
+    });
+    Column->addWidget(label);
+    Column->addWidget(brushRadiusSlider);
 
 
     connect(colorPreview, &QToolButton::clicked, this,
@@ -503,7 +520,6 @@ void MainWindow::createToolBar() {
         dialog.exec();
     });
 
-
     QAction *pixelSortAct = new QAction("Pixel Sort", this);
     pixelSortAct ->setIcon(QIcon(":/icons/sort.svg"));
     pixelSortAct->setToolTip("Sort pixels for a nice visual effect");
@@ -522,7 +538,7 @@ void MainWindow::createToolBar() {
         slider->setRange(0, 255);
         slider->setValue(128);
 
-        canvas->applyPixelSort(slider->value(),CanvasWidget::FilterMode::Preview);
+        canvas->applyPixelSort(slider->value(),CanvasWidget::FilterMode::Preview, 'b');
         QHBoxLayout *buttonsRow = new QHBoxLayout(this);
 
         QPushButton *applyBtn = new QPushButton("Apply", &dialog);
@@ -531,10 +547,18 @@ void MainWindow::createToolBar() {
         buttonsRow->addWidget(applyBtn);
         buttonsRow->addWidget(canelBtn);
 
+        QComboBox *sortModeComboBox = new QComboBox();
+        sortModeComboBox->addItem("dark to bright", QVariant('b'));
+        sortModeComboBox->addItem("bright to dark", QVariant('d'));
+
         layout->addWidget(label);
         layout->addWidget(slider);
+        layout->addWidget(sortModeComboBox);
         layout->addLayout(buttonsRow);
 
+        auto pixelSort  = [this,sortModeComboBox,slider](){
+            canvas->applyPixelSort(slider ->value(), CanvasWidget::FilterMode::Preview, sortModeComboBox ->currentData().toChar().toLatin1());
+        };
         connect(applyBtn, &QPushButton::clicked, &dialog, [this, &dialog]() {
             canvas->commitChanges();
             dialog.accept();
@@ -545,9 +569,9 @@ void MainWindow::createToolBar() {
             dialog.reject();
         });
 
-        connect(slider, &QSlider::valueChanged, this, [this](int value) {
-            canvas->applyPixelSort(value, CanvasWidget::FilterMode::Preview);
-        });
+        connect(slider, &QSlider::valueChanged, this, pixelSort);
+        connect(sortModeComboBox, &QComboBox::currentTextChanged,
+                this,pixelSort);
 
         connect(&dialog, &QDialog::rejected, this,
                 [this]() { canvas->cancelChanges(); });
@@ -768,13 +792,47 @@ void MainWindow::createToolBar() {
         canvas->setPreviewMode(true);
     });
 
-    // ColorWheel *wheel = new ColorWheel;
-    // wheel->setFixedSize(100, 100);
-    // toolbar->addWidget(wheel);
 
-    // connect(wheel, &ColorWheel::colorChanged, this, [this](const QColor &color) {
-    //     m_currentColor = color;
-    // });
+
+    QAction *canvasAction = new QAction("Resize Canvas");
+    canvasAction ->setIcon(QIcon(":/icons/canvas.svg"));
+    canvasAction ->setToolTip("Set the optimal size for image export");
+    canvasAction ->setCheckable(false);
+
+    connect(canvasAction, &QAction::triggered, this,
+            [this]() {
+                QDialog dialog(this);
+                dialog.setWindowTitle("Canvas");
+
+                QHBoxLayout *layout = new QHBoxLayout(
+                    &dialog);
+
+                layout->addWidget(new QLabel("Width"));
+                QSpinBox *widthSpinBox = new QSpinBox();
+                widthSpinBox->setRange(0, 10000);
+                widthSpinBox ->setValue(canvas->canvasRect.width());
+                layout->addWidget(widthSpinBox);
+
+                layout->addWidget(new QLabel("Height:"));
+                QSpinBox *heightSpinBox = new QSpinBox();
+                heightSpinBox->setRange(0, 10000);
+                heightSpinBox ->setValue(canvas->canvasRect.height());
+
+                layout->addWidget(heightSpinBox);
+
+
+                auto resizeCanvas = [this, widthSpinBox, heightSpinBox]() {
+                    int width = widthSpinBox->value();
+                    int height = heightSpinBox->value();
+                    canvas ->resizeCanvas(width, height);
+                };
+
+                connect(widthSpinBox, &QSpinBox::valueChanged, this, resizeCanvas);
+                connect(heightSpinBox, &QSpinBox::valueChanged, this, resizeCanvas);
+
+
+                dialog.exec();
+            });
     // Add to toolbar
     tb = addToolBar("Tools");
     addToolBar(Qt::LeftToolBarArea, tb);
@@ -790,7 +848,9 @@ void MainWindow::createToolBar() {
     tb->addAction(oilAct);
     tb->addAction(skewAct);
     tb->addAction(pixelSortAct);
-    tb ->addWidget(colorPreview);
+    tb->addAction(canvasAction);
+    tb->addWidget(colorPreview);
+    tb->addWidget(brushRadiusContent);
 }
 
 QWidget *MainWindow::createFilterSidePanel() {

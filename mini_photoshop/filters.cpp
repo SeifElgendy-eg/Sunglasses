@@ -7,10 +7,8 @@
 #include <string>
 #include <vector>
 #include <random>
-#include <chrono>
 #include <limits>
 #include <cstdint>
-#include <memory>
 #include <stdexcept>
 
 namespace Config
@@ -20,10 +18,6 @@ const int MIN_IMAGE_DIMENSION = 1;
 const int MORPH_BUCKET_SIZE = 16;
 const int MORPH_HOLD_FRAMES = 15;
 const int MORPH_GIF_DELAY = 5;
-const int MORPH_BASE_CHECKS = 200;
-const int MORPH_WEIGHT_CHECKS = 800;
-const int MORPH_FALLBACK_CHECKS = 500;
-const double MORPH_EARLY_STOP = 10.0;
 }
 
 bool validateDimensions(int width, int height)
@@ -402,6 +396,7 @@ void morphOptimized(Image &sourceImage, Image &targetImage, Image &weightsImage,
     const int BUCKET_COUNT = Config::MORPH_BUCKET_SIZE * Config::MORPH_BUCKET_SIZE * Config::MORPH_BUCKET_SIZE;
     std::vector<std::vector<int>> colorBuckets(BUCKET_COUNT);
 
+    // Build color buckets
     for (int row = 0; row < height; row++)
     {
         for (int col = 0; col < width; col++)
@@ -416,20 +411,11 @@ void morphOptimized(Image &sourceImage, Image &targetImage, Image &weightsImage,
         }
     }
 
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    std::default_random_engine rng(seed);
-omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
-#pragma omp parallel for
-    for (auto &bucket : colorBuckets)
-    {
-        std::shuffle(bucket.begin(), bucket.end(), rng);
-    }
-
     std::vector<bool> pixelUsed(pixelCount, false);
     pixelMapping.resize(pixelCount);
 
     int pixelsProcessed = 0;
-omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
+    omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
 #pragma omp parallel for
 
     for (int row = 0; row < height; row++)
@@ -442,23 +428,18 @@ omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
             int weight = weightsImage(col, row, 0);
             int targetFlatIdx = row * width + col;
 
-            int maxChecks = Config::MORPH_BASE_CHECKS +
-                            (weight * Config::MORPH_WEIGHT_CHECKS / 255);
-
             int targetBucketR = targetR / 16;
             int targetBucketG = targetG / 16;
             int targetBucketB = targetB / 16;
 
             double minDistance = std::numeric_limits<double>::max();
             int bestPixelIndex = -1;
-            int checksPerformed = 0;
-            bool foundMatch = false;
 
-            for (int dr = -1; dr <= 1 && !foundMatch && checksPerformed < maxChecks; dr++)
+            for (int dr = -3; dr <= 3; dr++)
             {
-                for (int dg = -1; dg <= 1 && !foundMatch && checksPerformed < maxChecks; dg++)
+                for (int dg = -3; dg <= 3; dg++)
                 {
-                    for (int db = -1; db <= 1 && !foundMatch && checksPerformed < maxChecks; db++)
+                    for (int db = -3; db <= 3; db++)
                     {
                         int br = targetBucketR + dr;
                         int bg = targetBucketG + dg;
@@ -472,16 +453,13 @@ omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
                         int bucketIdx = (br * Config::MORPH_BUCKET_SIZE * Config::MORPH_BUCKET_SIZE) +
                                         (bg * Config::MORPH_BUCKET_SIZE) + bb;
 
-                        for (size_t i = 0; i < colorBuckets[bucketIdx].size() &&
-                                           !foundMatch && checksPerformed < maxChecks;
-                             i++)
+                        // Check ALL pixels in this bucket
+                        for (size_t i = 0; i < colorBuckets[bucketIdx].size(); i++)
                         {
                             int srcFlatIdx = colorBuckets[bucketIdx][i];
 
                             if (!pixelUsed[srcFlatIdx])
                             {
-                                checksPerformed++;
-
                                 int srcRow = srcFlatIdx / width;
                                 int srcCol = srcFlatIdx % width;
 
@@ -504,11 +482,6 @@ omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
                                 {
                                     minDistance = dist;
                                     bestPixelIndex = srcFlatIdx;
-
-                                    if (dist < Config::MORPH_EARLY_STOP && weight < 128)
-                                    {
-                                        foundMatch = true;
-                                    }
                                 }
                             }
                         }
@@ -518,22 +491,14 @@ omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
 
             if (bestPixelIndex == -1)
             {
-                int globalChecks = 0;
-
-                for (size_t bucketIdx = 0; bucketIdx < colorBuckets.size() &&
-                                           globalChecks < Config::MORPH_FALLBACK_CHECKS;
-                     bucketIdx++)
+                for (size_t bucketIdx = 0; bucketIdx < colorBuckets.size(); bucketIdx++)
                 {
-                    for (size_t i = 0; i < colorBuckets[bucketIdx].size() &&
-                                       globalChecks < Config::MORPH_FALLBACK_CHECKS;
-                         i++)
+                    for (size_t i = 0; i < colorBuckets[bucketIdx].size(); i++)
                     {
                         int srcFlatIdx = colorBuckets[bucketIdx][i];
 
                         if (!pixelUsed[srcFlatIdx])
                         {
-                            globalChecks++;
-
                             int srcRow = srcFlatIdx / width;
                             int srcCol = srcFlatIdx % width;
 
@@ -681,7 +646,7 @@ void morphAnimated(Image &sourceImage, Image &targetImage, Image &weightsImage,
     bool initialFrameSaved = false;
     bool finalFrameSaved = false;
 
-omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
+    omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
 #pragma omp parallel for
     for (int row = 0; row < height; row++)
     {
@@ -727,7 +692,6 @@ omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
         }
         else
         {
-            double current_alpha = 1.0 * (1.0 - t) + blendFactor * t;
             for (int destRow = 0; destRow < height; destRow++)
             {
                 for (int destCol = 0; destCol < width; destCol++)
@@ -744,20 +708,9 @@ omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
                     int srcCol = std::clamp(static_cast<int>(std::round(sampleCol)), 0, width - 1);
                     int srcRow = std::clamp(static_cast<int>(std::round(sampleRow)), 0, height - 1);
 
-                    int warpedR = sourceImage(srcCol, srcRow, 0);
-                    int warpedG = sourceImage(srcCol, srcRow, 1);
-                    int warpedB = sourceImage(srcCol, srcRow, 2);
-
-                    int targetR = targetImage(destCol, destRow, 0);
-                    int targetG = targetImage(destCol, destRow, 1);
-                    int targetB = targetImage(destCol, destRow, 2);
-
-                    unsigned char R = static_cast<unsigned char>(std::clamp(
-                        static_cast<int>(current_alpha * warpedR + (1.0 - current_alpha) * targetR), 0, 255));
-                    unsigned char G = static_cast<unsigned char>(std::clamp(
-                        static_cast<int>(current_alpha * warpedG + (1.0 - current_alpha) * targetG), 0, 255));
-                    unsigned char B = static_cast<unsigned char>(std::clamp(
-                        static_cast<int>(current_alpha * warpedB + (1.0 - current_alpha) * targetB), 0, 255));
+                    unsigned char R = sourceImage(srcCol, srcRow, 0);
+                    unsigned char G = sourceImage(srcCol, srcRow, 1);
+                    unsigned char B = sourceImage(srcCol, srcRow, 2);
 
                     int framePos = (destRow * width + destCol) * 4;
                     currentFrameBuffer[framePos + 0] = R;
@@ -789,7 +742,8 @@ omp_set_num_threads(std::max(1, omp_get_max_threads() - 2));
     std::cout << "\nAnimated GIF creation complete!" << std::endl;
 }
 
-Image pixelsort(Image &image, int threshold, int x_s, int x_e , int y_s, int y_e ){
+
+Image pixelsort(Image &image, int threshold, int x_s, int x_e , int y_s, int y_e,char mode ){
     for(int col=x_s; col<x_e; col++){
         int curSt = 0;
         std::vector<std::vector<int>> pxls;
@@ -803,7 +757,13 @@ Image pixelsort(Image &image, int threshold, int x_s, int x_e , int y_s, int y_e
                     curSt=row+1;
                     continue;
                 }
+
+                if (mode == 'b' ){
                 std::sort(pxls.begin(), pxls.end(), [](std::vector<int> &a, std::vector<int> &b){return (a[0]+a[1]+a[2])<(b[0]+b[1]+b[2]);});
+                }
+                else if (mode == 'd' ){
+                std::sort(pxls.begin(), pxls.end(), [](std::vector<int> &a, std::vector<int> &b){return (a[0]+a[1]+a[2])>(b[0]+b[1]+b[2]);});
+                }
                 for(int i = curSt; i<row; i++){
                     image(col, i, 0)=pxls[i-curSt][0];
                     image(col, i, 1)=pxls[i-curSt][1];

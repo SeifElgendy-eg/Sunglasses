@@ -14,7 +14,6 @@ QT += concurrent
 QMAKE_CXXFLAGS += -fopenmp
 QMAKE_LFLAGS += -fopenmp
 
-INCLUDEPATH += $$PWD/Qt-Color-Widgets/src/QtColorWidgets
 
 SOURCES += \
     CanvasWidget.cpp \

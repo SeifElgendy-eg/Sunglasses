@@ -10,7 +10,7 @@
 #include <bits/stdc++.h>
 
 
-extern Image pixelsort(Image &image, int threshold, int x_s, int x_e , int y_s, int y_e );
+extern Image pixelsort(Image &image, int threshold, int x_s, int x_e , int y_s, int y_e, char mode );
 
 CanvasWidget::CanvasWidget(QWidget *parent) : QOpenGLWidget(parent),activeIndex(-1)  {
     setAutoFillBackground(true);
@@ -29,6 +29,10 @@ void CanvasWidget::resizeGL(int w, int h) {
     glViewport(0, 0, w, h);
 }
 
+void CanvasWidget::resizeCanvas(int width, int height){
+     canvasRect = QRect(0,0,width,height);
+    update();
+}
 
 QPoint& CanvasWidget::offset() {
     if (activeIndex >= 0 && activeIndex < images.size())
@@ -451,27 +455,27 @@ void CanvasWidget::mouseMoveEvent(QMouseEvent *event) {
     QPoint currentPos =translateEventPosition(event->pos()).toPoint();
     qDebug()<<currentPos-offset();
     if(isbrushing && checkRect.contains(currentPos)){
-        int radius =3;
 
-        for (int dy = -radius; dy <= radius; dy++) {
+        for (int dy = -brushRadius; dy <= brushRadius; dy++) {
 
-            for (int dx = -radius; dx<= radius; dx++) {
+            for (int dx = -brushRadius; dx<= brushRadius; dx++) {
                 int nx = currentPos.x()-offset().x() + dx;
                 int ny = currentPos.y()-offset().y() + dy;
 
+                double distance  = std::sqrt(dx*dx + dy*dy);
                 if (nx >= 0 && nx < m_image().width() && ny >= 0 &&
-                    ny < m_image().height()) {
+                    ny < m_image().height() && distance <=brushRadius) {
                     m_image().setPixelColor(nx,ny,brushColor);
                 }
             }
         }
-        for (int dy = -radius; dy <= radius; dy++) {
-            for (int dx = -radius; dx<= radius; dx++) {
+        for (int dy = -brushRadius; dy <= brushRadius; dy++) {
+            for (int dx = -brushRadius; dx<= brushRadius; dx++) {
                 int nx = (currentPos.x()-offset().x() + dx) * o_image().width() / m_image().width();
                 int ny = (currentPos.y()-offset().y() + dy)* o_image().height() / m_image().height();
-
+               double distance  = std::sqrt(dx*dx + dy*dy);
                 if (nx >= 0 && nx < o_image().width() && ny >= 0 &&
-                    ny < o_image().height()) {
+                    ny < o_image().height()&& distance <=brushRadius) {
                     o_image().setPixelColor(nx,ny,brushColor);
                 }
             }
@@ -483,6 +487,10 @@ update();
 
 void CanvasWidget:: setBrushColor(QColor color){
     brushColor  = color;
+}
+
+void CanvasWidget::setBrushRadius(int radius ){
+    brushRadius =radius;
 }
 void CanvasWidget::applyCrop(int xs,int xe,int ys, int ye){
 
@@ -1505,7 +1513,7 @@ void CanvasWidget::applySkewFilter(double degree, FilterMode mode) {
     update();
 }
 
-void CanvasWidget::applyPixelSort (int threshold, FilterMode mode){
+void CanvasWidget::applyPixelSort (int threshold, FilterMode mode, char sortMode){
 
 
     if (m_baseImage.isNull())
@@ -1518,7 +1526,7 @@ void CanvasWidget::applyPixelSort (int threshold, FilterMode mode){
 
     Image image;
     image = qImageToImage(m_baseImage);
-    pixelsort(image,threshold,start_x,end_x, start_y,end_y);
+    pixelsort(image,threshold,start_x,end_x, start_y,end_y,sortMode);
     m_image() = imageToQImage(image);
 
     if (o_baseImage.isNull())
@@ -1528,7 +1536,7 @@ void CanvasWidget::applyPixelSort (int threshold, FilterMode mode){
 
     Image o_Image;
     o_Image = qImageToImage(o_baseImage);
-    pixelsort(o_Image,threshold,o_x_s,o_x_e, o_y_s,o_y_e);
+    pixelsort(o_Image,threshold,o_x_s,o_x_e, o_y_s,o_y_e,sortMode);
     o_image() = imageToQImage(o_Image);
     update();
 
