@@ -54,7 +54,8 @@ QImage& CanvasWidget::o_image() {
 
 void CanvasWidget::addImage(const QImage &img) {
     if (img.isNull()) return;
-    images.push_back({img,img,img,QPoint(0,0),true,});
+    QImage set =img.convertToFormat(QImage::Format_ARGB32);
+    images.push_back({set,set,set,QPoint(0,0),true,});
 
     if (activeIndex == -1)
         setActiveLayer(0);
@@ -612,8 +613,8 @@ void CanvasWidget::clearRedoStack() { images[activeIndex].redoStack.clear(); }
 
 void CanvasWidget::resetImage() {
     saveState();
-    m_image() = r_image;
-    o_image() = r_image;
+    m_image() = images[activeIndex].r_image;
+    o_image() = images[activeIndex].r_image;
     update();
 }
 
