@@ -1,5 +1,0 @@
-/home/shade/codingProjects/fcai/ImageProcessingStudio/build/Desktop-Debug/CMakeFiles/ImageProcessingStudio.dir
-/home/shade/codingProjects/fcai/ImageProcessingStudio/build/Desktop-Debug/CMakeFiles/edit_cache.dir
-/home/shade/codingProjects/fcai/ImageProcessingStudio/build/Desktop-Debug/CMakeFiles/rebuild_cache.dir
-/home/shade/codingProjects/fcai/ImageProcessingStudio/build/Desktop-Debug/CMakeFiles/ImageProcessingStudio_autogen_timestamp_deps.dir
-/home/shade/codingProjects/fcai/ImageProcessingStudio/build/Desktop-Debug/CMakeFiles/ImageProcessingStudio_autogen.dir
