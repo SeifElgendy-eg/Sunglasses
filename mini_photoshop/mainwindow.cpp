@@ -40,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     canvas = new CanvasWidget(this);
 
     connect(canvas,&CanvasWidget::requestUpdateLayers,this,&MainWindow::updateLayers);
+
     QWidget *filterPanel = createFilterSidePanel();
     QWidget *morphPanel  =  createMorphPanel();
     QWidget *mergePanel = createMergePanel();
@@ -52,6 +53,29 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     tabWidget->setMinimumWidth(350);
     tabWidget->setMaximumWidth(500);
     QSplitter *splitter = new QSplitter(this);
+
+    connect(canvas, &CanvasWidget::nullImageWarning,this ,[this](bool enabled){
+        tb->setEnabled(enabled);
+        for(auto act:menuBar->actions()){
+            if(act->text() == "&File"){
+                for(auto change:act->menu() ->actions())
+                {
+                    if(change->text()=="&Change Image" ||change->text()=="&Save Active Image")
+                        change->setEnabled(enabled);
+                }
+            }
+            if(act->text() == "&File"||act->text() == "&Help")
+                continue;
+
+            act ->setEnabled(enabled);
+        }
+
+        for(int i =0; i<tabWidget->count()-1; i++){
+        tabWidget->widget(i)->setEnabled(enabled);
+        }
+
+    });
+
 
     splitter->addWidget(canvas);
     splitter->addWidget(tabWidget);

@@ -87,6 +87,7 @@ enum class ToolMode { None,Move,Select, Resize,Crop,Pan,Brush};
 
 signals:
     void previewModeChanged(bool enabled);
+    void nullImageWarning(bool enabled);
     void requestUpdateLayers();
 
 protected:
@@ -178,6 +179,8 @@ private:
 
     QColor brushColor = Qt::white;
     bool isbrushing = false;
+
+    int handleSize = 10;
     int start_x,end_x;
     int start_y,end_y;
     int o_x_s;

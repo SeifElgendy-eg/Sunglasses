@@ -15,6 +15,7 @@ extern Image pixelsort(Image &image, int threshold, int x_s, int x_e , int y_s, 
 CanvasWidget::CanvasWidget(QWidget *parent) : QOpenGLWidget(parent),activeIndex(-1)  {
     setAutoFillBackground(true);
     setBackgroundRole(QPalette::Base);
+
 }
 
 void CanvasWidget::initializeGL() {
@@ -22,7 +23,7 @@ void CanvasWidget::initializeGL() {
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     canvasRect = QRect(0,0,1920,1080);
     m_panOffset = QPoint(width()/2 - canvasRect.width()/2, height()/2 - canvasRect.height()/2);
-
+    emit nullImageWarning(false);
 }
 
 void CanvasWidget::resizeGL(int w, int h) {
@@ -54,6 +55,7 @@ QImage& CanvasWidget::o_image() {
 
 void CanvasWidget::addImage(const QImage &img) {
     if (img.isNull()) return;
+    emit nullImageWarning(true);
     QImage set =img.convertToFormat(QImage::Format_ARGB32);
     images.push_back({set,set,set,QPoint(0,0),true,});
 
@@ -181,7 +183,7 @@ void CanvasWidget::setTool(ToolMode tool) {
     update();
 
     if(m_tool == ToolMode::Resize){
-        int handleSize = 10;
+      handleSize = std::max(2,static_cast<int>(((m_image().width() + m_image().height())/2)*0.05));
 
         // Draw the selection border
         m_resizeRect = QRect(offset().x(), offset().y(), m_image().width(), m_image().height());
@@ -207,7 +209,7 @@ void CanvasWidget::setTool(ToolMode tool) {
 
 void CanvasWidget::updateCropHandles()
 {
-    const qreal handleSize = 10.0;
+    handleSize = std::max(2,static_cast<int>(((m_image().width() + m_image().height())/2)*0.05));
 
     handleBottomCenter = QPoint(m_cropRect.center().x(), m_cropRect.bottom());
     handleUpperCenter  = QPoint(m_cropRect.center().x(), m_cropRect.top());
@@ -576,6 +578,8 @@ void CanvasWidget::mouseReleaseEvent(QMouseEvent *event) {
     }
 }
 void CanvasWidget::saveState() {
+    if(m_image().isNull())
+        return;
     images[activeIndex].undoStack.push(qMakePair(m_image(), o_image()));
     if (images[activeIndex].undoStack.size() > MAX_UNDO_STEPS) {
         images[activeIndex].undoStack.removeFirst();
