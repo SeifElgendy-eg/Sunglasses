@@ -22,7 +22,9 @@ void CanvasWidget::initializeGL() {
     initializeOpenGLFunctions();
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     canvasRect = QRect(0,0,1920,1080);
-    m_panOffset = QPoint(width()/2 - canvasRect.width()/2, height()/2 - canvasRect.height()/2);
+
+    m_zoom = 0.5;
+    m_panOffset = QPointF((width() - canvasRect.width()*m_zoom)/2, (height() - canvasRect.height()*m_zoom)/2);
     emit nullImageWarning(false);
 }
 
@@ -257,7 +259,7 @@ void CanvasWidget::wheelEvent(QWheelEvent *event)
 
 void CanvasWidget::mousePressEvent(QMouseEvent *event) {
 
-    if((m_tool ==ToolMode::Pan&&event ->button() == Qt::LeftButton) ||event->button() == Qt::MiddleButton){
+    if((m_tool ==ToolMode::Pan&&event ->button() == Qt::LeftButton) ||(event->button() == Qt::MiddleButton)||(event->button() == Qt::LeftButton&&(event->modifiers() & Qt::ShiftModifier))){
         m_panning = true;
         m_lastPanPos = event ->pos();
         setCursor(Qt::ClosedHandCursor);

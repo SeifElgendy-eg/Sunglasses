@@ -80,13 +80,14 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     splitter->addWidget(canvas);
     splitter->addWidget(tabWidget);
 
-    splitter->setSizes({750, 250});
+    splitter->setSizes({1020, 900});
 
     setCentralWidget(splitter);
 
     setWindowTitle("Mini Photoshop");
-    resize(1000, 700);
+    resize(1920, 1080);
 
+    setWindowState(Qt::WindowMaximized);
 
     QToolBar *cropBar = addToolBar("Crop Preview");
 
